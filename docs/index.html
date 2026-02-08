@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORP | Distributed Ledger</title>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #010409; color: #c9d1d9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .header { border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 30px; }
+        .ledger-card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 15px; margin-bottom: 15px; transition: 0.3s; }
+        .ledger-card:hover { border-color: #58a6ff; }
+        .status-tag { background: #238636; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; float: right; }
+        .hash-text { font-family: monospace; color: #8b949e; font-size: 0.85em; word-break: break-all; }
+        h1 { color: #f0f6fc; margin: 0; }
+        .label { color: #58a6ff; font-weight: bold; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ OpenResPublica Ledger</h1>
+            <p>Node Status: <span style="color: #3fb950;">● Online</span> | Storage: immudb-v1.10</p>
+        </div>
+        <div id="ledger-entries">
+            </div>
+    </div>
+
+    <script>
+        fetch('manifest.json')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('ledger-entries');
+                data.forEach(entry => {
+                    const card = document.createElement('div');
+                    card.className = 'ledger-card';
+                    card.innerHTML = `
+                        <span class="status-tag">VERIFIED</span>
+                        <div class="label">RECORD ID: ${entry.id}</div>
+                        <div class="hash-text"><strong>FILE HASH:</strong> ${entry.hash}</div>
+                        <div class="hash-text"><strong>CHAIN LINK:</strong> ${entry.chain_link}</div>
+                        <hr style="border:0; border-top:1px solid #21262d; margin:10px 0;">
+                        <a href="/outputs/${entry.id}.txt" style="color:#58a6ff; font-size: 0.9em;">[ View Raw Document ]</a>
+                    `;
+                    container.appendChild(card);
+                });
+            });
+    </script>
+</body>
+</html>

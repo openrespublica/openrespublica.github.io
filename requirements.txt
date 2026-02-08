@@ -1,0 +1,17 @@
+# --- CORE PDF ENGINE ---
+reportlab==4.0.4
+
+# --- IMAGE & QR PROCESSING ---
+Pillow==10.0.0
+qrcode[pil]==7.4.2
+
+# --- CRYPTOGRAPHY & LEDGER ---
+immudb-py==1.4.1
+# cryptography satisfied via apk (py3-cryptography)
+# hashlib is built-in, no need to install
+
+# --- LEGAL AUTOMATION ---
+num2words==0.5.13
+
+# --- WEB PORTAL (For local testing) ---
+Flask==3.0.0
