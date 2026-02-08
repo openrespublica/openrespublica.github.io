@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ORP | Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #010409; color: #c9d1d9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .nav { margin-bottom: 12px; }
+        .nav a { color: #58a6ff; margin-right: 14px; text-decoration: none; }
+        .nav a:hover { text-decoration: underline; }
+        .breadcrumb { font-size: 0.85em; color: #8b949e; margin-bottom: 18px; }
+        .card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 20px; margin-bottom: 15px; }
+        h1 { color: #f0f6fc; margin: 0 0 8px 0; }
+        h2 { font-size: 1.1em; color: #8b949e; margin-top: 0; }
+        .label { color: #58a6ff; font-weight: bold; font-size: 0.9em; }
+        .hash-text { font-family: monospace; color: #8b949e; font-size: 0.85em; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏛️ OpenResPublica Dashboard</h1>
+        <div class="nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="index.html">Ledger</a>
+            <a href="chain.html">Chain Viewer</a>
+            <a href="search.html">Search</a>
+        </div>
+        <div class="breadcrumb">Dashboard</div>
+        <div class="card">
+            <h2>Node Status</h2>
+            <p><span style="color: #3fb950;">● Online</span> | Storage: immudb-v1.10</p>
+        </div>
+        <div class="card">
+            <h2>Latest Entry Anchored</h2>
+            <div id="latest">Loading...</div>
+        </div>
+    </div>
+    <script>
+        (async function(){
+            try {
+                const res = await fetch('manifest.json', {cache: "no-store"});
+                const data = await res.json();
+                if (!data.length) { document.getElementById('latest').innerText = "No records."; return; }
+                const latest = data[data.length - 1];
+                document.getElementById('latest').innerHTML = `
+                    <div class="label">ID: ${latest.id}</div>
+                    <div class="hash-text"><strong>Hash:</strong> ${latest.hash}</div>
+                    <div style="margin-top:12px;">
+                        <a href="outputs/${encodeURIComponent(latest.id)}.txt" target="_blank" style="color:#58a6ff; text-decoration:none;">View Raw</a>
+                        &nbsp;|&nbsp;
+                        <a href="chain.html?id=${encodeURIComponent(latest.id)}&fromLedger=1" style="color:#58a6ff; text-decoration:none;">Trace Chain</a>
+                    </div>
+                `;
+            } catch (err) { document.getElementById('latest').innerText = "Node error."; }
+        })();
+    </script>
+</body>
+</html>

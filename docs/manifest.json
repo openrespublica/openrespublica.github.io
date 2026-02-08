@@ -10,5 +10,11 @@
     "hash": "d35fc8bf99ccfa27d078b11a571915fc3d021c8a0553bf8716e749a5b5859fca",
     "chain_link": "9d374fb3fa6e467727efe14119d498c2cf3c7a8c8dd6a833550bebe8080e2f11",
     "verified": "immudb-v1.2"
+  },
+  {
+    "id": "PAO-2026-002",
+    "hash": "780a203deefb02e9f646b553362af16f9b03790170c31dd0bcd0bf3bc6f1606e",
+    "chain_link": "6e94e3de736581d7aee74ffe7a4edfba095bbb32f7b7ac62699fedacb2e18d56",
+    "verified": "immudb-v1.2"
   }
 ]

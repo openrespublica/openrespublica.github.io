@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ORP | Search</title>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #010409; color: #c9d1d9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .nav { margin-bottom: 12px; }
+        .nav a { color: #58a6ff; margin-right: 14px; text-decoration: none; }
+        .nav a:hover { text-decoration: underline; }
+        .breadcrumb { font-size: 0.85em; color: #8b949e; margin-bottom: 12px; }
+        input[type="text"] { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; box-sizing: border-box; }
+        .result { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 15px; margin-bottom: 10px; }
+        .hash { font-family: monospace; color: #8b949e; font-size: 0.85em; word-break: break-all; }
+        .label { color: #58a6ff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Search Ledger</h1>
+        <div class="nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="index.html">Ledger</a>
+            <a href="chain.html">Chain Viewer</a>
+            <a href="search.html">Search</a>
+        </div>
+        <div class="breadcrumb">Dashboard > Search</div>
+        <input id="searchBox" type="text" placeholder="Type ID or Hash to find record...">
+        <div id="results"></div>
+    </div>
+    <script>
+        let manifest = [];
+        (async function(){
+            try {
+                const res = await fetch('manifest.json', {cache: "no-store"});
+                manifest = await res.json();
+            } catch (err) { console.error(err); }
+        })();
+
+        document.getElementById('searchBox').addEventListener('input', function(){
+            const q = this.value.trim().toLowerCase();
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            if (!q) return;
+            const matches = manifest.filter(e => 
+                e.id.toLowerCase().includes(q) || e.hash.toLowerCase().includes(q)
+            );
+            matches.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = 'result';
+                div.innerHTML = `
+                    <div class="label">ID: ${entry.id}</div>
+                    <div class="hash">Hash: ${entry.hash}</div>
+                    <div style="margin-top:8px;">
+                        <a href="chain.html?id=${encodeURIComponent(entry.id)}&fromSearch=1" style="color:#58a6ff; text-decoration:none;">Trace Chain</a>
+                    </div>
+                `;
+                resultsDiv.appendChild(div);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ORP | Chain Viewer</title>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #010409; color: #c9d1d9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .nav { margin-bottom: 12px; }
+        .nav a { color: #58a6ff; margin-right: 14px; text-decoration: none; }
+        .nav a:hover { text-decoration: underline; }
+        .breadcrumb { font-size: 0.85em; color: #8b949e; margin-bottom: 18px; }
+        .block { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 15px; margin-bottom: 20px; position: relative;}
+        .block:after { content: "↑"; position: absolute; bottom: -22px; left: 50%; color: #30363d; font-size: 1.5em; }
+        .block:last-child:after { content: ""; }
+        .hash { font-family: monospace; color: #8b949e; font-size: 0.85em; word-break: break-all; }
+        .back-link { margin-bottom: 15px; display:block; color: #58a6ff; text-decoration: none; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Chain Viewer</h1>
+        <div class="nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="index.html">Ledger</a>
+            <a href="chain.html">Chain Viewer</a>
+            <a href="search.html">Search</a>
+        </div>
+        <div id="breadcrumb" class="breadcrumb">Dashboard > Chain Viewer</div>
+        <div id="back-area"></div>
+        <div id="chain"></div>
+    </div>
+    <script>
+        (async function(){
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            if (id) document.getElementById('breadcrumb').textContent = `Dashboard > Chain Viewer > ${id}`;
+            
+            if (params.get('fromSearch')) {
+                document.getElementById('back-area').innerHTML = `<a class="back-link" href="search.html">← Back to Search</a>`;
+            } else {
+                document.getElementById('back-area').innerHTML = `<a class="back-link" href="index.html">← Back to Ledger</a>`;
+            }
+
+            try {
+                const res = await fetch('manifest.json', {cache: "no-store"});
+                const data = await res.json();
+                const chainDiv = document.getElementById('chain');
+                let current = id ? data.find(e => e.id === id) : data[data.length - 1];
+
+                while (current) {
+                    const div = document.createElement('div');
+                    div.className = 'block';
+                    div.innerHTML = `
+                        <strong>RECORD ID:</strong> ${current.id}<br>
+                        <div class="hash"><strong>HASH:</strong> ${current.hash}</div>
+                        <div class="hash"><strong>LINK:</strong> ${current.chain_link}</div>
+                    `;
+                    chainDiv.appendChild(div);
+                    // Find the block this one points to
+                    current = data.find(e => e.hash === current.chain_link);
+                }
+            } catch (err) { console.error(err); }
+        })();
+    </script>
+</body>
+</html>
