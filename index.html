@@ -31,18 +31,19 @@
     const ts = params.get("ts");
 
     const badgesDiv = document.getElementById("badges");
+    const metaDiv = document.getElementById("metadata");
+
     if (sha256) badgesDiv.innerHTML += `<span class="badge">SHA256 Verified</span>`;
     if (immudb) badgesDiv.innerHTML += `<span class="badge">immudb Immutable Record</span>`;
     if (ts) badgesDiv.innerHTML += `<span class="badge">Timestamped</span>`;
 
-    const metaDiv = document.getElementById("metadata");
     metaDiv.innerHTML = `
       <p><strong>SHA256:</strong> ${sha256 || "N/A"}</p>
       <p><strong>immudb Hash:</strong> ${immudb || "N/A"}</p>
       <p><strong>Timestamp:</strong> ${ts || "N/A"}</p>
     `;
 
-    // Try to fetch richer metadata JSON
+    // Fetch richer metadata JSON once
     if (sha256) {
       fetch(`records/${sha256}.json`)
         .then(resp => resp.json())
@@ -52,6 +53,22 @@
             <p><strong>Signer:</strong> ${data.signer}</p>
             <p><strong>Status:</strong> ${data.status}</p>
           `;
+          const statusBadge = document.createElement("span");
+          statusBadge.className = "badge";
+          if (data.status === "Compliant") {
+            statusBadge.style.background = "#d4edda";
+            statusBadge.style.border = "1px solid #155724";
+            statusBadge.textContent = "✔ Compliant";
+          } else if (data.status === "Rejected") {
+            statusBadge.style.background = "#f8d7da";
+            statusBadge.style.border = "1px solid #721c24";
+            statusBadge.textContent = "✖ Rejected";
+          } else {
+            statusBadge.style.background = "#fff3cd";
+            statusBadge.style.border = "1px solid #856404";
+            statusBadge.textContent = "⚠ Pending";
+          }
+          badgesDiv.appendChild(statusBadge);
         })
         .catch(() => {
           metaDiv.innerHTML += `<p><em>No extended metadata found.</em></p>`;
