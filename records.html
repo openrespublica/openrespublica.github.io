@@ -1,123 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Transparency Ledger - OpenResPublica</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ledger • OpenResPublica</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; color: #333; }
-    h1 { color: #004080; }
-    input, select { margin: 0.5rem; padding: 0.4rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
-    th { background: #e0f0ff; cursor: pointer; }
-    tr:nth-child(even) { background: #f2f2f2; }
-    .badge { padding: 0.3rem 0.6rem; border-radius: 4px; font-weight: bold; }
-    .compliant { background: #d4edda; border: 1px solid #155724; color: #155724; }
-    .rejected { background: #f8d7da; border: 1px solid #721c24; color: #721c24; }
-    .pending { background: #fff3cd; border: 1px solid #856404; color: #856404; }
+    :root{--accent:#004080;--muted:#6b7280;--bg:#f6f8fb;--card:#fff;--radius:10px;--maxw:1200px}
+    body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:#111}
+    header{background:var(--accent);color:#fff;padding:18px}
+    header .wrap{max-width:var(--maxw);margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+    header h1{margin:0;font-size:1.2rem}
+    main{max-width:var(--maxw);margin:20px auto;padding:0 18px}
+    .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+    input,select,button{padding:8px;border-radius:8px;border:1px solid #e6eef8}
+    table{width:100%;border-collapse:collapse;background:var(--card);border-radius:8px;overflow:hidden}
+    th,td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left;font-size:0.95rem}
+    th{background:#f1f7ff;color:var(--accent);cursor:pointer;user-select:none}
+    tr:nth-child(even){background:#fbfdff}
+    .badge{padding:6px 8px;border-radius:6px;font-weight:700}
+    .compliant{background:#d4edda;border:1px solid #155724;color:#155724}
+    .rejected{background:#f8d7da;border:1px solid #721c24;color:#721c24}
+    .pending{background:#fff3cd;border:1px solid #856404;color:#856404}
+    footer{margin:24px 0;color:var(--muted);text-align:center}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+    @media(max-width:720px){ .topbar{flex-direction:column;align-items:stretch} }
   </style>
 </head>
 <body>
-  <h1>Transparency Ledger</h1>
-  <p>Browse all published records stamped and verified.</p>
+  <header>
+    <div class="wrap">
+      <h1>OpenResPublica • Transparency Ledger</h1>
+      <nav>
+        <a href="index.html" style="color:#fff;text-decoration:none;margin-right:12px">Verify</a>
+        <a href="about.html" style="color:#fff;text-decoration:none">About</a>
+      </nav>
+    </div>
+  </header>
 
-  <!-- Search and filter controls -->
-  <div>
-    <input type="text" id="searchInput" placeholder="Search SHA256, Agency, Signer...">
-    <select id="statusFilter">
-      <option value="">All Statuses</option>
-      <option value="Compliant">Compliant</option>
-      <option value="Rejected">Rejected</option>
-      <option value="Pending">Pending</option>
-    </select>
-  </div>
+  <main>
+    <div class="topbar">
+      <div>
+        <strong>Browse published records</strong>
+        <div style="color:var(--muted);font-size:0.95rem">Search, filter, and sort the public ledger.</div>
+      </div>
+      <div>
+        <button id="exportCsv">Export CSV</button>
+      </div>
+    </div>
 
-  <table id="recordsTable">
-    <thead>
-      <tr>
-        <th>SHA256</th>
-        <th>Agency</th>
-        <th>Signer</th>
-        <th id="timestampHeader">Timestamp ▼</th>
-        <th>Status</th>
-        <th>Portal Link</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <div class="controls">
+      <input id="searchInput" placeholder="Search SHA256, Agency, Signer..." style="flex:1">
+      <select id="statusFilter">
+        <option value="">All statuses</option>
+        <option value="Compliant">Compliant</option>
+        <option value="Rejected">Rejected</option>
+        <option value="Pending">Pending</option>
+      </select>
+    </div>
 
-  <footer>
-    Powered by OpenResPublica • Transparency Proof-of-Concept
-  </footer>
+    <div style="overflow:auto" class="card">
+      <table id="recordsTable" aria-live="polite">
+        <thead>
+          <tr>
+            <th>SHA256</th>
+            <th>Agency</th>
+            <th>Signer</th>
+            <th id="tsHeader">Timestamp ▼</th>
+            <th>Status</th>
+            <th>View</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <footer>© 2026 OpenResPublica • Public ledger of stamped documents</footer>
+  </main>
 
   <script>
     const tableBody = document.querySelector("#recordsTable tbody");
+    const searchInput = document.getElementById("searchInput");
+    const statusFilter = document.getElementById("statusFilter");
+    const exportBtn = document.getElementById("exportCsv");
     let allRecords = [];
-    let sortDescending = true;
+    let sortDesc = true;
 
     // Load manifest.json
     fetch("records/manifest.json")
-      .then(resp => resp.json())
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then(records => {
         allRecords = records;
         sortRecords();
-        renderTable(allRecords);
+        render(allRecords);
       })
-      .catch(() => {
-        tableBody.innerHTML = `<tr><td colspan="6"><em>No records found.</em></td></tr>`;
+      .catch(()=> {
+        tableBody.innerHTML = `<tr><td colspan="6" style="padding:18px;color:#666">No records found.</td></tr>`;
       });
 
-    function renderTable(records) {
+    function render(records){
       tableBody.innerHTML = "";
-      records.forEach(data => {
-        const row = document.createElement("tr");
-        const statusClass = data.status === "Compliant" ? "compliant" :
-                            data.status === "Rejected" ? "rejected" : "pending";
-        row.innerHTML = `
-          <td>${data.sha256}</td>
-          <td>${data.agency}</td>
-          <td>${data.signer}</td>
-          <td>${data.timestamp}</td>
-          <td><span class="badge ${statusClass}">${data.status}</span></td>
-          <td><a href="?sha256=${data.sha256}&immudb=${data.immudb}&ts=${data.timestamp}">View</a></td>
+      if(!records.length){
+        tableBody.innerHTML = `<tr><td colspan="6" style="padding:18px;color:#666">No matching records.</td></tr>`;
+        return;
+      }
+      records.forEach(r => {
+        const tr = document.createElement("tr");
+        const cls = r.status === "Compliant" ? "compliant" : r.status === "Rejected" ? "rejected" : "pending";
+        tr.innerHTML = `
+          <td style="font-family:monospace;word-break:break-all">${r.sha256}</td>
+          <td>${r.agency}</td>
+          <td>${r.signer}</td>
+          <td>${r.timestamp}</td>
+          <td><span class="badge ${cls}">${r.status}</span></td>
+          <td><a href="index.html?sha256=${encodeURIComponent(r.sha256)}&immudb=${encodeURIComponent(r.immudb)}&ts=${encodeURIComponent(r.timestamp)}">View</a></td>
         `;
-        tableBody.appendChild(row);
+        tableBody.appendChild(tr);
       });
     }
 
-    // Search + filter logic
-    document.getElementById("searchInput").addEventListener("input", applyFilters);
-    document.getElementById("statusFilter").addEventListener("change", applyFilters);
-
-    function applyFilters() {
-      const query = document.getElementById("searchInput").value.toLowerCase();
-      const status = document.getElementById("statusFilter").value;
+    function applyFilters(){
+      const q = searchInput.value.trim().toLowerCase();
+      const status = statusFilter.value;
       const filtered = allRecords.filter(r => {
-        const matchesQuery =
-          r.sha256.toLowerCase().includes(query) ||
-          r.agency.toLowerCase().includes(query) ||
-          r.signer.toLowerCase().includes(query);
+        const matchesQ = !q || r.sha256.toLowerCase().includes(q) || r.agency.toLowerCase().includes(q) || r.signer.toLowerCase().includes(q);
         const matchesStatus = !status || r.status === status;
-        return matchesQuery && matchesStatus;
+        return matchesQ && matchesStatus;
       });
-      renderTable(filtered);
+      render(filtered);
     }
+
+    searchInput.addEventListener("input", applyFilters);
+    statusFilter.addEventListener("change", applyFilters);
 
     // Sorting by timestamp
-    document.getElementById("timestampHeader").addEventListener("click", () => {
-      sortDescending = !sortDescending;
+    document.getElementById("tsHeader").addEventListener("click", () => {
+      sortDesc = !sortDesc;
       sortRecords();
-      applyFilters(); // re-render with filters applied
-      document.getElementById("timestampHeader").textContent = sortDescending ? "Timestamp ▼" : "Timestamp ▲";
+      applyFilters();
+      document.getElementById("tsHeader").textContent = sortDesc ? "Timestamp ▼" : "Timestamp ▲";
     });
 
-    function sortRecords() {
-      allRecords.sort((a, b) => {
-        const dateA = new Date(a.timestamp);
-        const dateB = new Date(b.timestamp);
-        return sortDescending ? dateB - dateA : dateA - dateB;
+    function sortRecords(){
+      allRecords.sort((a,b) => {
+        const da = new Date(a.timestamp), db = new Date(b.timestamp);
+        return sortDesc ? db - da : da - db;
       });
     }
+
+    // CSV export
+    exportBtn.addEventListener("click", () => {
+      if(!allRecords.length) return;
+      const rows = [
+        ["sha256","immudb","timestamp","agency","signer","status"],
+        ...allRecords.map(r => [r.sha256, r.immudb, r.timestamp, r.agency, r.signer, r.status])
+      ];
+      const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "openrespublica_ledger.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
   </script>
 </body>
 </html>

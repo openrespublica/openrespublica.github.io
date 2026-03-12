@@ -1,79 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Transparency Portal - OpenResPublica</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OpenResPublica • Verify Document</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; color: #333; }
-    h1 { color: #004080; }
-    .badge { display: inline-block; padding: 0.5rem 1rem; margin: 0.5rem 0; border-radius: 5px;
-             background: #e0f0ff; border: 1px solid #004080; font-weight: bold; }
-    .metadata { margin-top: 1rem; padding: 1rem; background: #fff; border: 1px solid #ccc; border-radius: 5px; }
-    .metadata p { margin: 0.5rem 0; }
-    footer { margin-top: 2rem; font-size: 0.9em; color: #666; }
+    :root{--accent:#004080;--muted:#6b7280;--bg:#f6f8fb;--card:#fff;--radius:10px;--maxw:1100px}
+    body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:#111}
+    header{background:var(--accent);color:#fff;padding:28px 16px}
+    header .wrap{max-width:var(--maxw);margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    header h1{margin:0;font-size:1.4rem}
+    nav a{color:#fff;text-decoration:none;margin-left:12px;opacity:0.95}
+    main{max-width:var(--maxw);margin:28px auto;padding:0 20px}
+    .hero{display:flex;flex-direction:column;gap:14px}
+    .card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:0 8px 24px rgba(16,24,40,0.06)}
+    .controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .badges{display:flex;gap:8px;flex-wrap:wrap}
+    .badge{background:#e8f0ff;border:1px solid #cfe3ff;padding:8px 12px;border-radius:8px;font-weight:600;color:var(--accent)}
+    .meta p{margin:6px 0;color:var(--muted)}
+    .qr{max-width:160px;border-radius:8px}
+    footer{max-width:var(--maxw);margin:28px auto;padding:18px 20px;color:var(--muted);text-align:center}
+    @media(min-width:900px){ .hero{flex-direction:row} .left{flex:1} .right{width:320px} }
   </style>
 </head>
 <body>
-  <h1>Transparency Portal</h1>
-  <p>Verifying integrity of uploaded documents using SHA256 and immudb.</p>
+  <header>
+    <div class="wrap">
+      <h1>OpenResPublica</h1>
+      <nav>
+        <a href="index.html">Verify</a>
+        <a href="records.html">Ledger</a>
+        <a href="about.html">About</a>
+      </nav>
+    </div>
+  </header>
 
-  <div id="badges"></div>
-  <div class="metadata" id="metadata"></div>
+  <main>
+    <section class="hero">
+      <div class="left card">
+        <h2>Verify a stamped document</h2>
+        <p class="meta">Scan the QR on a stamped PDF or paste the SHA256 below to view verification details and metadata published to the public ledger.</p>
+
+        <div style="margin-top:12px" class="controls">
+          <input id="shaInput" type="text" placeholder="Paste SHA256 fingerprint" style="flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef8">
+          <button id="lookupBtn" style="padding:10px 14px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-weight:600">Lookup</button>
+          <a href="records.html" style="padding:10px 14px;border-radius:8px;border:1px solid #e6eef8;background:#fff;color:var(--accent);text-decoration:none">Browse Ledger</a>
+        </div>
+
+        <div id="result" style="margin-top:18px"></div>
+      </div>
+
+      <aside class="right card" id="detailCard" aria-live="polite">
+        <div class="badges" id="badges"></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-top:12px">
+          <div style="flex:1">
+            <div id="meta" class="meta"></div>
+          </div>
+          <div id="qrWrap" style="width:160px;text-align:center"></div>
+        </div>
+      </aside>
+    </section>
+  </main>
 
   <footer>
-    Powered by OpenResPublica • Transparency Proof-of-Concept
+    © 2026 OpenResPublica • Verify document integrity • <a href="about.html">About</a>
   </footer>
 
   <script>
+    // Helper: read URL params (for QR scans)
     const params = new URLSearchParams(window.location.search);
-    const sha256 = params.get("sha256");
-    const immudb = params.get("immudb");
-    const ts = params.get("ts");
+    const shaFromUrl = params.get("sha256");
+    const immudbFromUrl = params.get("immudb");
+    const tsFromUrl = params.get("ts");
 
     const badgesDiv = document.getElementById("badges");
-    const metaDiv = document.getElementById("metadata");
+    const metaDiv = document.getElementById("meta");
+    const qrWrap = document.getElementById("qrWrap");
+    const result = document.getElementById("result");
+    const detailCard = document.getElementById("detailCard");
 
-    if (sha256) badgesDiv.innerHTML += `<span class="badge">SHA256 Verified</span>`;
-    if (immudb) badgesDiv.innerHTML += `<span class="badge">immudb Immutable Record</span>`;
-    if (ts) badgesDiv.innerHTML += `<span class="badge">Timestamped</span>`;
+    function showBasic(sha, immudb, ts){
+      badgesDiv.innerHTML = "";
+      if(sha) badgesDiv.innerHTML += `<span class="badge">SHA256</span>`;
+      if(immudb) badgesDiv.innerHTML += `<span class="badge">immudb</span>`;
+      if(ts) badgesDiv.innerHTML += `<span class="badge">Timestamp</span>`;
 
-    metaDiv.innerHTML = `
-      <p><strong>SHA256:</strong> ${sha256 || "N/A"}</p>
-      <p><strong>immudb Hash:</strong> ${immudb || "N/A"}</p>
-      <p><strong>Timestamp:</strong> ${ts || "N/A"}</p>
-    `;
+      metaDiv.innerHTML = `
+        <p><strong>SHA256:</strong> ${sha || "N/A"}</p>
+        <p><strong>immudb:</strong> ${immudb || "N/A"}</p>
+        <p><strong>Timestamp:</strong> ${ts || "N/A"}</p>
+      `;
+    }
 
-    // Fetch richer metadata JSON once
-    if (sha256) {
-      fetch(`records/${sha256}.json`)
-        .then(resp => resp.json())
+    function showNotFound(sha){
+      result.innerHTML = `<div class="card" style="background:#fff3f2;border:1px solid #ffd6d0;color:#7a1f1f">No public record found for <strong>${sha}</strong>.</div>`;
+      metaDiv.innerHTML = "";
+      badgesDiv.innerHTML = "";
+      qrWrap.innerHTML = "";
+    }
+
+    // If page opened with QR params, attempt to fetch record
+    if(shaFromUrl){
+      showBasic(shaFromUrl, immudbFromUrl, tsFromUrl);
+      fetch(`records/${shaFromUrl}.json`)
+        .then(r => {
+          if(!r.ok) throw new Error("not found");
+          return r.json();
+        })
         .then(data => {
+          result.innerHTML = "";
           metaDiv.innerHTML += `
             <p><strong>Agency:</strong> ${data.agency}</p>
             <p><strong>Signer:</strong> ${data.signer}</p>
             <p><strong>Status:</strong> ${data.status}</p>
           `;
-          const statusBadge = document.createElement("span");
-          statusBadge.className = "badge";
-          if (data.status === "Compliant") {
-            statusBadge.style.background = "#d4edda";
-            statusBadge.style.border = "1px solid #155724";
-            statusBadge.textContent = "✔ Compliant";
-          } else if (data.status === "Rejected") {
-            statusBadge.style.background = "#f8d7da";
-            statusBadge.style.border = "1px solid #721c24";
-            statusBadge.textContent = "✖ Rejected";
-          } else {
-            statusBadge.style.background = "#fff3cd";
-            statusBadge.style.border = "1px solid #856404";
-            statusBadge.textContent = "⚠ Pending";
-          }
-          badgesDiv.appendChild(statusBadge);
+          // small QR preview (link back to portal with params)
+          qrWrap.innerHTML = `<img alt="QR link" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(location.origin + location.pathname + '?sha256=' + data.sha256 + '&immudb=' + data.immudb + '&ts=' + data.timestamp)}" class="qr">`;
         })
-        .catch(() => {
-          metaDiv.innerHTML += `<p><em>No extended metadata found.</em></p>`;
-        });
+        .catch(()=> showNotFound(shaFromUrl));
     }
+
+    // Lookup by pasted SHA
+    document.getElementById("lookupBtn").addEventListener("click", () => {
+      const sha = document.getElementById("shaInput").value.trim();
+      if(!sha) return;
+      result.innerHTML = `<div class="card">Looking up…</div>`;
+      showBasic(sha, null, null);
+      fetch(`records/${sha}.json`)
+        .then(r => {
+          if(!r.ok) throw new Error("not found");
+          return r.json();
+        })
+        .then(data => {
+          result.innerHTML = "";
+          metaDiv.innerHTML = `
+            <p><strong>SHA256:</strong> ${data.sha256}</p>
+            <p><strong>immudb:</strong> ${data.immudb}</p>
+            <p><strong>Timestamp:</strong> ${data.timestamp}</p>
+            <p><strong>Agency:</strong> ${data.agency}</p>
+            <p><strong>Signer:</strong> ${data.signer}</p>
+            <p><strong>Status:</strong> ${data.status}</p>
+          `;
+          badgesDiv.innerHTML = `<span class="badge">SHA256</span><span class="badge">immudb</span>`;
+          qrWrap.innerHTML = `<img alt="QR link" src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(location.origin + location.pathname + '?sha256=' + data.sha256 + '&immudb=' + data.immudb + '&ts=' + data.timestamp)}" class="qr">`;
+        })
+        .catch(()=> {
+          showNotFound(sha);
+        });
+    });
+
+    // Allow Enter key in input
+    document.getElementById("shaInput").addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){ e.preventDefault(); document.getElementById("lookupBtn").click(); }
+    });
   </script>
 </body>
 </html>

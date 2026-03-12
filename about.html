@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>About • OpenResPublica</title>
+  <style>
+    :root{
+      --accent:#004080; --muted:#6b7280; --card:#ffffff; --bg:#f6f8fb;
+      --radius:10px; --maxw:1100px;
+    }
+    body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:#111;}
+    header{background:linear-gradient(180deg,var(--accent),#0b5aa6);color:#fff;padding:48px 16px;text-align:center}
+    header h1{margin:0;font-size:2.1rem;letter-spacing:0.2px}
+    header p{margin:8px 0 0;color:rgba(255,255,255,0.9)}
+    nav{display:flex;gap:12px;justify-content:center;margin-top:18px}
+    nav a{color:#fff;text-decoration:none;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.06)}
+    main{max-width:var(--maxw);margin:32px auto;padding:0 20px}
+    .hero{display:grid;grid-template-columns:1fr;gap:18px;align-items:center}
+    .card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:0 6px 18px rgba(16,24,40,0.06)}
+    h2{color:var(--accent);margin:0 0 8px}
+    p.lead{color:var(--muted);margin:0 0 12px;line-height:1.6}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:18px}
+    .values li{margin:10px 0}
+    footer{max-width:var(--maxw);margin:36px auto;padding:18px 20px;color:var(--muted);text-align:center}
+    @media(min-width:900px){ .hero{grid-template-columns:1fr 420px} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>OpenResPublica</h1>
+    <p>Building trust through transparent, verifiable public records</p>
+    <nav>
+      <a href="index.html">Verify Document</a>
+      <a href="records.html">Ledger</a>
+      <a href="about.html" aria-current="page">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="card">
+        <h2>Who we are</h2>
+        <p class="lead">
+          OpenResPublica is a civic technology initiative that makes public documents verifiable and auditable.
+          We combine cryptographic hashing, immutable logging, and a citizen‑facing portal so anyone can confirm
+          the integrity of official records.
+        </p>
+
+        <div class="grid">
+          <div class="card">
+            <h3>Mission</h3>
+            <p>To empower citizens, auditors, and public servants with accessible, tamper‑evident records that strengthen accountability.</p>
+          </div>
+
+          <div class="card">
+            <h3>Vision</h3>
+            <p>A Philippines where every public document is verifiable, every transaction leaves an immutable trail, and trust is measurable.</p>
+          </div>
+
+          <div class="card">
+            <h3>Approach</h3>
+            <p>We stamp documents with cryptographic fingerprints, log them in an immutable store, and publish metadata to a public ledger for easy verification.</p>
+          </div>
+
+          <div class="card">
+            <h3>Who benefits</h3>
+            <p>Citizens, journalists, auditors, civil society, and government agencies seeking transparent, auditable records.</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="card">
+        <h3>Core values</h3>
+        <ul class="values">
+          <li><strong>Integrity</strong> — Immutable evidence of authenticity.</li>
+          <li><strong>Accessibility</strong> — Simple interfaces for everyone.</li>
+          <li><strong>Transparency</strong> — Public ledger and open processes.</li>
+          <li><strong>Collaboration</strong> — Working with government and civic tech.</li>
+        </ul>
+
+        <h3 style="margin-top:18px">Get involved</h3>
+        <p style="margin:0;color:var(--muted)">Contribute code, suggest improvements, or help translate the portal. See the repository on GitHub for details.</p>
+      </aside>
+    </section>
+  </main>
+
+  <footer>
+    © 2026 OpenResPublica • Built for transparency • <a href="records.html">View Ledger</a>
+  </footer>
+</body>
+</html>
