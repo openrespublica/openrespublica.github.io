@@ -2,80 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Transparency Portal - Proof of Concept</title>
+  <title>Transparency Portal - OpenResPublica</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 2rem;
-      background: #f9f9f9;
-      color: #333;
-    }
-    h1 {
-      color: #004080;
-    }
-    .badge {
-      display: inline-block;
-      padding: 0.5rem 1rem;
-      margin: 0.5rem 0;
-      border-radius: 5px;
-      background: #e0f0ff;
-      border: 1px solid #004080;
-      font-weight: bold;
-    }
-    .metadata {
-      margin-top: 1rem;
-      padding: 1rem;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-    .metadata p {
-      margin: 0.5rem 0;
-    }
-    footer {
-      margin-top: 2rem;
-      font-size: 0.9em;
-      color: #666;
-    }
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; color: #333; }
+    h1 { color: #004080; }
+    .badge { display: inline-block; padding: 0.5rem 1rem; margin: 0.5rem 0; border-radius: 5px;
+             background: #e0f0ff; border: 1px solid #004080; font-weight: bold; }
+    .metadata { margin-top: 1rem; padding: 1rem; background: #fff; border: 1px solid #ccc; border-radius: 5px; }
+    .metadata p { margin: 0.5rem 0; }
+    footer { margin-top: 2rem; font-size: 0.9em; color: #666; }
   </style>
 </head>
 <body>
   <h1>Transparency Portal</h1>
-  <p>This page verifies the integrity of uploaded documents using SHA256 and immudb.</p>
+  <p>Verifying integrity of uploaded documents using SHA256 and immudb.</p>
 
   <div id="badges"></div>
   <div class="metadata" id="metadata"></div>
 
   <footer>
-    Powered by OpenResPublica • Proof-of-Concept Transparency Portal
+    Powered by OpenResPublica • Transparency Proof-of-Concept
   </footer>
 
   <script>
-    // Parse query parameters
     const params = new URLSearchParams(window.location.search);
     const sha256 = params.get("sha256");
     const immudb = params.get("immudb");
     const ts = params.get("ts");
 
-    // Render badges
     const badgesDiv = document.getElementById("badges");
-    if (sha256) {
-      badgesDiv.innerHTML += `<span class="badge">SHA256 Verified</span>`;
-    }
-    if (immudb) {
-      badgesDiv.innerHTML += `<span class="badge">immudb Immutable Record</span>`;
-    }
-    if (ts) {
-      badgesDiv.innerHTML += `<span class="badge">Timestamped</span>`;
-    }
+    if (sha256) badgesDiv.innerHTML += `<span class="badge">SHA256 Verified</span>`;
+    if (immudb) badgesDiv.innerHTML += `<span class="badge">immudb Immutable Record</span>`;
+    if (ts) badgesDiv.innerHTML += `<span class="badge">Timestamped</span>`;
 
-    // Render metadata
     const metaDiv = document.getElementById("metadata");
     metaDiv.innerHTML = `
       <p><strong>SHA256:</strong> ${sha256 || "N/A"}</p>
       <p><strong>immudb Hash:</strong> ${immudb || "N/A"}</p>
       <p><strong>Timestamp:</strong> ${ts || "N/A"}</p>
     `;
+
+    // Try to fetch richer metadata JSON
+    if (sha256) {
+      fetch(`records/${sha256}.json`)
+        .then(resp => resp.json())
+        .then(data => {
+          metaDiv.innerHTML += `
+            <p><strong>Agency:</strong> ${data.agency}</p>
+            <p><strong>Signer:</strong> ${data.signer}</p>
+            <p><strong>Status:</strong> ${data.status}</p>
+          `;
+        })
+        .catch(() => {
+          metaDiv.innerHTML += `<p><em>No extended metadata found.</em></p>`;
+        });
+    }
   </script>
 </body>
 </html>
