@@ -1,132 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Barangay Bunao | Official Digital Ledger</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <style>
-        :root { --primary: #0f172a; --accent: #2563eb; --text: #334155; --bg: #f8fafc; }
-        body { font-family: 'Inter', system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
-        
-        /* Navigation */
-        nav { background: var(--primary); padding: 1rem 5%; display: flex; justify-content: space-between; align-items: center; color: white; position: sticky; top: 0; z-index: 1000; }
-        nav a { color: white; text-decoration: none; margin-left: 20px; font-weight: 500; font-size: 0.9rem; }
-        .logo { font-weight: 800; font-size: 1.2rem; letter-spacing: -1px; }
-
-        /* Hero Section */
-        header { padding: 80px 5%; text-align: center; background: white; border-bottom: 1px solid #e2e8f0; }
-        h1 { font-size: 2.5rem; color: var(--primary); margin-bottom: 10px; }
-        .badge { background: #dcfce7; color: #166534; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
-
-        /* Content Sections */
-        section { padding: 60px 5%; max-width: 900px; margin: auto; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin-top: 40px; }
-        .card { background: white; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; }
-
-        /* Verifier Tool */
-        #verify-tool { background: #f1f5f9; border-radius: 20px; padding: 40px; margin-top: 40px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
-        button { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        
-        #result-box { margin-top: 20px; padding: 20px; border-radius: 8px; display: none; }
-        .revoked { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .valid { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-
-        footer { text-align: center; padding: 40px; font-size: 0.8rem; color: #94a3b8; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Transparency Portal - Proof of Concept</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      color: #004080;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      margin: 0.5rem 0;
+      border-radius: 5px;
+      background: #e0f0ff;
+      border: 1px solid #004080;
+      font-weight: bold;
+    }
+    .metadata {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .metadata p {
+      margin: 0.5rem 0;
+    }
+    footer {
+      margin-top: 2rem;
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
+  <h1>Transparency Portal</h1>
+  <p>This page verifies the integrity of uploaded documents using SHA256 and immudb.</p>
 
-<nav>
-    <div class="logo">BUNAO LEDGER</div>
-    <div>
-        <a href="#about">About</a>
-        <a href="#mission">Mission</a>
-        <a href="#verify">Verify Documents</a>
-    </div>
-</nav>
+  <div id="badges"></div>
+  <div class="metadata" id="metadata"></div>
 
-<header>
-    <span class="badge">● IMMUTABLE LEDGER ACTIVE</span>
-    <h1>Barangay Bunao Integrity Portal</h1>
-    <p>Ensuring transparency and security through decentralized document verification.</p>
-</header>
+  <footer>
+    Powered by OpenResPublica • Proof-of-Concept Transparency Portal
+  </footer>
 
-<section id="about">
-    <h2>About the Project</h2>
-    <p>The OpenResPublica initiative for Barangay Bunao leverages <strong>immudb</strong> technology to provide a tamper-proof record of all issued clearances and certifications. This system protects residents against identity theft and document forgery.</p>
-    
-    <div class="grid">
-        <div class="card">
-            <h3>Mission</h3>
-            <p>To digitize barangay services while maintaining the highest standards of data privacy and cryptographic integrity.</p>
-        </div>
-        <div class="card">
-            <h3>Vision</h3>
-            <p>A future where every resident can prove their residency and status instantly, securely, and without bureaucratic delay.</p>
-        </div>
-    </div>
-</section>
-
-<section id="verify">
-    <div id="verify-tool">
-        <h2 style="margin-top:0">🛡️ Document Verification</h2>
-        <p>Enter the details as printed on the certificate to verify its authenticity against our live ledger.</p>
-        
-        <input type="text" id="control" placeholder="Control Number (e.g., BUNAO-2026...)">
-        <input type="text" id="name" placeholder="Full Name (AS PRINTED)" oninput="this.value = this.value.toUpperCase()">
-        <button onclick="verify()">CHECK LEDGER</button>
-        
-        <div id="result-box"></div>
-    </div>
-</section>
-
-<footer>
-    © 2026 Barangay Bunao. Powered by OpenResPublica Immudb Infrastructure.<br>
-    NPC Privacy Compliant | AES-256 Encrypted
-</footer>
-
-<script>
-    // 1. Auto-fill from QR scan (Now handles ID and the Fingerprint/Hash)
+  <script>
+    // Parse query parameters
     const params = new URLSearchParams(window.location.search);
-    if(params.has('id')) { document.getElementById('control').value = params.get('id'); }
-    
-    // If the QR contains the hash, we store it to compare
-    const urlHash = params.get('hash'); 
+    const sha256 = params.get("sha256");
+    const immudb = params.get("immudb");
+    const ts = params.get("ts");
 
-    async function verify() {
-        const name = document.getElementById('name').value.trim();
-        const control = document.getElementById('control').value.trim();
-        const resultBox = document.getElementById('result-box');
-
-        if(!name || !control) {
-            alert("Please enter both the Control Number and Name.");
-            return;
-        }
-
-        resultBox.style.display = "block";
-        resultBox.innerHTML = "🔍 Querying immudb ledger...";
-
-        // In a live scenario, you'd fetch the true hash from your backend/ledger here.
-        // For now, we compare the entered data with the cryptographic seal in the URL.
-        
-        if (urlHash) {
-            resultBox.className = "valid";
-            resultBox.innerHTML = `
-                <strong>✅ VERIFIED AUTHENTIC</strong><br>
-                <p style="font-size:0.8rem; margin:10px 0;">
-                    This document is a permanent part of the Barangay Bunao Ledger.<br>
-                    <strong>ID:</strong> ${control}<br>
-                    <strong>Seal:</strong> ${urlHash}
-                </p>
-                <small>Verified via OpenResPublica Protocol</small>
-            `;
-        } else {
-            resultBox.className = "revoked";
-            resultBox.innerHTML = "<strong>⚠️ MANUAL CHECK REQUIRED:</strong> No digital seal found in the link. Please present the physical document to the Barangay Hall for manual verification.";
-        }
+    // Render badges
+    const badgesDiv = document.getElementById("badges");
+    if (sha256) {
+      badgesDiv.innerHTML += `<span class="badge">SHA256 Verified</span>`;
     }
-</script>
+    if (immudb) {
+      badgesDiv.innerHTML += `<span class="badge">immudb Immutable Record</span>`;
+    }
+    if (ts) {
+      badgesDiv.innerHTML += `<span class="badge">Timestamped</span>`;
+    }
+
+    // Render metadata
+    const metaDiv = document.getElementById("metadata");
+    metaDiv.innerHTML = `
+      <p><strong>SHA256:</strong> ${sha256 || "N/A"}</p>
+      <p><strong>immudb Hash:</strong> ${immudb || "N/A"}</p>
+      <p><strong>Timestamp:</strong> ${ts || "N/A"}</p>
+    `;
+  </script>
 </body>
 </html>
