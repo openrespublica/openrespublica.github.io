@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Transparency Ledger - OpenResPublica</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; color: #333; }
+    h1 { color: #004080; }
+    input, select { margin: 0.5rem; padding: 0.4rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background: #e0f0ff; cursor: pointer; }
+    tr:nth-child(even) { background: #f2f2f2; }
+    .badge { padding: 0.3rem 0.6rem; border-radius: 4px; font-weight: bold; }
+    .compliant { background: #d4edda; border: 1px solid #155724; color: #155724; }
+    .rejected { background: #f8d7da; border: 1px solid #721c24; color: #721c24; }
+    .pending { background: #fff3cd; border: 1px solid #856404; color: #856404; }
+  </style>
+</head>
+<body>
+  <h1>Transparency Ledger</h1>
+  <p>Browse all published records stamped and verified.</p>
+
+  <!-- Search and filter controls -->
+  <div>
+    <input type="text" id="searchInput" placeholder="Search SHA256, Agency, Signer...">
+    <select id="statusFilter">
+      <option value="">All Statuses</option>
+      <option value="Compliant">Compliant</option>
+      <option value="Rejected">Rejected</option>
+      <option value="Pending">Pending</option>
+    </select>
+  </div>
+
+  <table id="recordsTable">
+    <thead>
+      <tr>
+        <th>SHA256</th>
+        <th>Agency</th>
+        <th>Signer</th>
+        <th id="timestampHeader">Timestamp ▼</th>
+        <th>Status</th>
+        <th>Portal Link</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <footer>
+    Powered by OpenResPublica • Transparency Proof-of-Concept
+  </footer>
+
+  <script>
+    const tableBody = document.querySelector("#recordsTable tbody");
+    let allRecords = [];
+    let sortDescending = true;
+
+    // Load manifest.json
+    fetch("records/manifest.json")
+      .then(resp => resp.json())
+      .then(records => {
+        allRecords = records;
+        sortRecords();
+        renderTable(allRecords);
+      })
+      .catch(() => {
+        tableBody.innerHTML = `<tr><td colspan="6"><em>No records found.</em></td></tr>`;
+      });
+
+    function renderTable(records) {
+      tableBody.innerHTML = "";
+      records.forEach(data => {
+        const row = document.createElement("tr");
+        const statusClass = data.status === "Compliant" ? "compliant" :
+                            data.status === "Rejected" ? "rejected" : "pending";
+        row.innerHTML = `
+          <td>${data.sha256}</td>
+          <td>${data.agency}</td>
+          <td>${data.signer}</td>
+          <td>${data.timestamp}</td>
+          <td><span class="badge ${statusClass}">${data.status}</span></td>
+          <td><a href="?sha256=${data.sha256}&immudb=${data.immudb}&ts=${data.timestamp}">View</a></td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Search + filter logic
+    document.getElementById("searchInput").addEventListener("input", applyFilters);
+    document.getElementById("statusFilter").addEventListener("change", applyFilters);
+
+    function applyFilters() {
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const status = document.getElementById("statusFilter").value;
+      const filtered = allRecords.filter(r => {
+        const matchesQuery =
+          r.sha256.toLowerCase().includes(query) ||
+          r.agency.toLowerCase().includes(query) ||
+          r.signer.toLowerCase().includes(query);
+        const matchesStatus = !status || r.status === status;
+        return matchesQuery && matchesStatus;
+      });
+      renderTable(filtered);
+    }
+
+    // Sorting by timestamp
+    document.getElementById("timestampHeader").addEventListener("click", () => {
+      sortDescending = !sortDescending;
+      sortRecords();
+      applyFilters(); // re-render with filters applied
+      document.getElementById("timestampHeader").textContent = sortDescending ? "Timestamp ▼" : "Timestamp ▲";
+    });
+
+    function sortRecords() {
+      allRecords.sort((a, b) => {
+        const dateA = new Date(a.timestamp);
+        const dateB = new Date(b.timestamp);
+        return sortDescending ? dateB - dateA : dateA - dateB;
+      });
+    }
+  </script>
+</body>
+</html>
