@@ -1,8 +1,10 @@
 {
   "sha256": "524fe43e9a4b2c81d3b634727c326eb0d7381462b5778a58921adcecd1b21423",
   "immudb": "524fe43e9a4b2c81d3b634727c326eb0d7381462b5778a58921adcecd1b21423",
-  "timestamp": "2026-03-12T18:23:48.179802+08:00",
-  "agency": "Public Attorney's Office",
-  "signer": "Persida V. Rueda-Acosta",
+  "timestamp": "2026-03-13T00:54:55.166674+08:00",
+  "agency": "LGU BARANGAY BU\u00d1AO",
+  "signer": "HON. RAQUEL A. SAMSON",
+  "position": "Punong Barangay",
+  "control_number": "2026-0009",
   "status": "Compliant"
 }
