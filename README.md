@@ -62,12 +62,12 @@
 
 ```mermaid
 flowchart TD
-    A[Termux Environment] -->|sign| B[GPG Signing]
-    B -->|push| C[SSH Transport]
-    C -->|secure| D[GitHub Security]
-    D -->|enforce| E[Audit & Transparency]
-    E -->|verify| F[Public Verification]
-
+    A [Termux Environment] --> |sign| B [GPG Signing]
+    B --> |push| C [SSH Transport]
+    C --> |secure| D [GitHub Security]
+    D --> |enforce| E [Audit & Transparency]
+    E --> |verify| F [Public Verification]
+ 
     %% Styling
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style B fill:#ffcc00,stroke:#333,stroke-width:2px
@@ -75,7 +75,7 @@ flowchart TD
     style D fill:#99ff99,stroke:#333,stroke-width:2px
     style E fill:#ff9966,stroke:#333,stroke-width:2px
     style F fill:#cccccc,stroke:#333,stroke-width:2px
-
+```
 ## ✅ Contributor Requirements
 
 **1. Clone via SSH**
