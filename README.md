@@ -62,11 +62,11 @@
 
 ```mermaid
 graph TD;
-    Start [Termux Environment] --> Sign [GPG Signing];
-    Sign --> Push [SSH Transport];
-    Push --> Secure [GitHub Security];
-    Secure --> Audit [Audit & Transparency];
-    Audit --> Verify [Public Verification]; 
+    Start[Termux Environment]-->Sign[GPG Signing];
+    Sign-->Push[SSH Transport];
+    Push-->Secure[GitHub Security];
+    Secure-->Audit[Audit & Transparency];
+    Audit-->Verify[Public Verification]; 
 ```
 ## ✅ Contributor Requirements
 
