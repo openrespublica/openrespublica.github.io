@@ -161,15 +161,29 @@ def sync_to_github(json_path):
     with git_lock:
         repo_path = REPO_PATH  
         anchor_hash = os.path.basename(json_path).replace(".json", "") 
+        
+        # Point Git to the ephemeral session key in RAM
+        ssh_key_path = "/dev/shm/orp_identity/session.key"
+        git_env = os.environ.copy()
+        git_env["GIT_SSH_COMMAND"] = f"ssh -i {ssh_key_path} -o StrictHostKeyChecking=no"
+        
         try: 
-            subprocess.run(['git', '-C', repo_path, 'add', '.'], check=True) 
-            subprocess.run(['git', '-C', repo_path, 'commit', '-m', f"Audit: Anchor {anchor_hash}"], check=False) 
-            subprocess.run(['git', '-C', repo_path, 'fetch', 'origin'], check=True) 
-            subprocess.run(['git', '-C', repo_path, 'pull', '--rebase', '-X', 'ours', 'origin', 'main'], check=True) 
-            subprocess.run(['git', '-C', repo_path, 'push', 'origin', 'main'], check=True) 
+            # 1. Add changes
+            subprocess.run(['git', '-C', repo_path, 'add', '.'], check=True, env=git_env) 
+            
+            # 2. Commit (Allowing failure if there's nothing new to commit)
+            subprocess.run(['git', '-C', repo_path, 'commit', '-m', f"Audit: Anchor {anchor_hash}"], check=False, env=git_env) 
+            
+            # 3. Fetch and Rebase to stay in sync with the Public Ledger
+            subprocess.run(['git', '-C', repo_path, 'fetch', 'origin'], check=True, env=git_env) 
+            subprocess.run(['git', '-C', repo_path, 'pull', '--rebase', '-X', 'ours', 'origin', 'main'], check=True, env=git_env) 
+            
+            # 4. Push using the ephemeral identity
+            subprocess.run(['git', '-C', repo_path, 'push', 'origin', 'main'], check=True, env=git_env) 
+            
             print(f"✅ Ledger synchronized: {anchor_hash}") 
         except subprocess.CalledProcessError as e: 
-            print(f"❌ [Git Error] {e}") 
+            print(f"❌ [Git Sync Error] {e}")
 
 # --- 4. ROUTES ---
 @app.route("/")
