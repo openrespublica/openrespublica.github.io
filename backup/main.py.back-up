@@ -1,0 +1,395 @@
+import hashlib, io, os, json, subprocess, datetime, qrcode, threading, pytz, time
+import gnupg
+from flask import Flask, request, send_file, render_template_string, jsonify, send_from_directory
+from pypdf import PdfReader, PdfWriter
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
+from immudb.client import ImmudbClient
+from dotenv import load_dotenv
+from docxtpl import DocxTemplate
+from serial import Serial
+
+load_dotenv()
+
+# --- 1. CONFIGURATION ---
+IMMUDB_HOST = os.getenv("IMMUDB_HOST", "localhost:3322")
+IMMUDB_USER = os.getenv("IMMUDB_USER", "immudb")
+IMMUDB_PASS = os.getenv("IMMUDB_PASS", "immudb")
+IMMUDB_DB = os.getenv("IMMUDB_DB", "defaultdb").encode('utf-8')
+
+HSM_PORT = os.getenv("HSM_PORT", "/dev/ttyUSB1")
+HSM_BAUD = 115200
+
+LGU_NAME = os.getenv("LGU_NAME", "Local Government Unit")
+SIGNER_NAME = os.getenv("LGU_SIGNER_NAME", "Authorized Signatory")
+SIGNER_POS = os.getenv("LGU_SIGNER_POSITION", "Official")
+TZ_NAME = os.getenv("LGU_TIMEZONE", "Asia/Manila")
+
+REPO_PATH = os.getenv("GITHUB_REPO_PATH", "/home/openrespublica/openrespublica.github.io")
+GITHUB_PORTAL = os.getenv("GITHUB_PORTAL_URL", "https://openrespublica.github.io/verify.html")
+TEMPLATE_PATH = os.getenv("TEMPLATE_DOCX_PATH", "templates/barangay_template.docx")
+RECORDS_DIR = os.path.join(REPO_PATH, "docs", "records")
+CONTROL_FILE = os.path.join(REPO_PATH, "docs", "control_number.txt")
+
+GPG_EMAIL = os.getenv("OPERATOR_GPG_EMAIL", "")
+GPG_HOME = os.getenv("GNUPGHOME", "/home/openrespublica/.gnupg")
+gpg = gnupg.GPG(gnupghome=GPG_HOME)
+
+# --- 2. INITIALIZATION ---
+app = Flask(__name__)
+ctrl_lock = threading.Lock()
+git_lock = threading.Lock()
+os.makedirs(RECORDS_DIR, exist_ok=True)
+
+def get_client():
+    c = ImmudbClient(IMMUDB_HOST)
+    c.login(IMMUDB_USER, IMMUDB_PASS, database=IMMUDB_DB)
+    return c
+
+client = get_client()
+
+def sign_json_data(record_dict, user_pin):
+    """Signs the JSON payload using the HSM-derived passphrase."""
+    data_str = json.dumps(record_dict, sort_keys=True)
+    
+    # 1. Get the 64-char Hex from the ESP32 using the PIN
+    hsm_passphrase = get_hsm_derived_pass(user_pin)
+    
+    if not hsm_passphrase:
+        print("❌ Failed to get HSM passphrase. Signature aborted.")
+        return None
+
+    # 2. Use GPG to sign the data using the derived passphrase
+    # We pass the hsm_passphrase directly to the sign function
+    gpg_sig = gpg.sign(data_str, keyid=GPG_EMAIL, passphrase=hsm_passphrase)
+    
+    if not gpg_sig.status == "signature created":
+        print(f"❌ GPG Error: {gpg_sig.stderr}")
+        return None
+
+    return {
+        "gpg_signature": str(gpg_sig),
+        "hash_anchor": hashlib.sha256(data_str.encode()).hexdigest(),
+        "hsm_status": "HARDWARE_VERIFIED_ARGON2ID"
+    }
+
+def generate_truthchain_metadata(pdf_path, control_no, doc_type):
+    # 1. Generate the SHA-256 Fingerprint
+    sha256_hash = hashlib.sha256()
+    with open(pdf_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    
+    file_hash = sha256_hash.hexdigest()
+
+    # 2. Construct the Schema
+    metadata = {
+        "version": "2.0",
+        "control_number": control_no,
+        "document_type": doc_type,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "ledger_anchors": {
+            "sha256_hash": file_hash
+        },
+        "cryptographic_seals": {
+            "hardware_seal": {
+                "device_id": "ESP32-S3-BUNAO-01",
+                "attestation_msg": "Hardware-Locked Signature via ORP-HSM"
+            }
+        }
+    }
+
+    # 3. Save to docs/records/
+    record_path = f"docs/records/{file_hash}.json"
+    with open(record_path, "w") as jf:
+        json.dump(metadata, jf, indent=2)
+    
+    return file_hash
+
+# --- 4. CORE UTILITIES ---
+def next_control_number():
+    with ctrl_lock:
+        local_tz = pytz.timezone(TZ_NAME)
+        current_year = str(datetime.datetime.now(local_tz).year)
+        if not os.path.exists(CONTROL_FILE):
+            with open(CONTROL_FILE, "w") as f: f.write(f"{current_year}-0000")
+        with open(CONTROL_FILE, "r+") as f:
+            val = f.read().strip().split("-")
+            year, num = val[0], int(val[1])
+            if year != current_year: year, num = current_year, 0
+            new_ctrl = f"{year}-{(num + 1):04d}"
+            f.seek(0); f.write(new_ctrl); f.truncate()
+        return new_ctrl
+
+def generate_qr(sha256_hash):
+    qr_url = f"{GITHUB_PORTAL}?hash={sha256_hash}"
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
+    qr.add_data(qr_url)
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    qr_img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf, qr_url
+
+def add_footer(original_pdf, sha256_hash, signature, qr_buf, timestamp, control_number):
+    reader = PdfReader(io.BytesIO(original_pdf))
+    writer = PdfWriter()
+    qr_image = ImageReader(qr_buf)
+    for page in reader.pages:
+        packet = io.BytesIO()
+        c = canvas.Canvas(packet, pagesize=A4)
+        c.setLineWidth(0.5)
+        c.line(25*mm, 22*mm, 185*mm, 22*mm)
+        items = [("TIMESTAMP", timestamp), ("CTRL NO", control_number), ("HASH", sha256_hash[:32]+"...")]
+        y = 18*mm
+        for label, val in items:
+            c.setFont("Helvetica-Bold", 7); c.drawString(30*mm, y, f"{label}:")
+            c.setFont("Helvetica", 7); c.drawString(55*mm, y, str(val))
+            y -= 3.5*mm
+        c.drawImage(qr_image, 165*mm, 5*mm, width=15*mm, height=15*mm)
+        c.save(); packet.seek(0)
+        page.merge_page(PdfReader(packet).pages[0])
+        writer.add_page(page)
+    out = io.BytesIO(); writer.write(out); out.seek(0)
+    return out
+
+def update_manifest(new_record):
+    manifest_path = os.path.join(RECORDS_DIR, "manifest.json")
+    records = []
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, "r") as f:
+                records = json.load(f)
+        except Exception:
+            records = []
+    records.append(new_record)
+    if len(records) > 1000:
+        records = records[-1000:]
+    with open(manifest_path, "w") as f:
+        json.dump(records, f, indent=4)
+
+def sync_to_github(json_path):
+     # Use the lock to prevent concurrent git operations 
+    with git_lock: 
+        repo_path = REPO_PATH  
+         # Derive the hash from the filename for the commit message 
+        anchor_hash = os.path.basename(json_path).replace(".json", "") 
+        try: 
+             # 1. Stage everything 
+            subprocess.run(['git', '-C', repo_path, 'add', '.'], check=True) 
+             # 2. Commit with the specific anchor hash 
+             # check=False because if nothing changed, git commit returns 1 
+            subprocess.run(['git', '-C', repo_path, 'commit', '-m', f"Audit: Anchor {anchor_hash}"], check=False) 
+             # 3. Fetch remote state
+            subprocess.run(['git', '-C', repo_path, 'fetch', 'origin'], check=True) 
+             # 4. Pull with Rebase (using 'ours' to prioritize local ledger entries) 
+            subprocess.run(['git', '-C', repo_path, 'pull', '--rebase', '-X', 'ours', 'origin', 'main'], check=True) 
+             # 5. Push to GitHub 
+            subprocess.run(['git', '-C', repo_path, 'push', 'origin', 'main'], check=True) 
+            print(f"✅ Ledger synchronized: {anchor_hash}") 
+        except subprocess.CalledProcessError as e: 
+            print(f"❌ [Git Error] {e}") 
+
+
+
+# --- 5. ROUTES ---
+@app.route("/")
+def home():
+    return send_from_directory("templates", "portal.html")
+
+@app.route("/upload", methods=["POST"])
+def upload_pdf():
+    global client
+    file = request.files.get("document")
+    if not file or not file.filename.lower().endswith('.pdf'):
+        return "Only PDF files are accepted.", 400
+
+    doc_type = request.form.get("doc_type", "BARANGAY-CERT")
+    pdf_bytes = file.read()
+    sha256_hash = hashlib.sha256(pdf_bytes).hexdigest()
+
+    try:
+        tx = client.set(sha256_hash.encode(), b"VERIFIED_BY_ORP_ENGINE")
+    except Exception:
+        print("⚠️ [immudb] Session expired, reconnecting...")
+        client = get_client()
+        tx = client.set(sha256_hash.encode(), b"VERIFIED_BY_ORP_ENGINE")
+
+    local_tz = pytz.timezone(TZ_NAME)
+    timestamp_ph = datetime.datetime.now(local_tz).strftime("%Y-%m-%d %I:%M %p PHT")
+    control_no = next_control_number()
+    final_ctrl = f"Verified_{control_no}-{doc_type}"
+    verification_url = f"{GITHUB_PORTAL}?hash={sha256_hash}"
+
+    qr_buf, _ = generate_qr(sha256_hash)
+    stamped_pdf_buf = add_footer(pdf_bytes, sha256_hash, "ORP-IMMUTABLE-SIG", qr_buf, timestamp_ph, final_ctrl)
+
+    # Base Record
+    record = {
+        "status": "VERIFIED ✅",
+        "signer": SIGNER_NAME,
+        "position": f"{SIGNER_POS}, {LGU_NAME}",
+        "document_type": doc_type,
+        "control_number": final_ctrl,
+        "sha256_hash": sha256_hash,
+        "timestamp": timestamp_ph,
+        "immudb_transaction_id": tx.id,
+        "verification_url": verification_url
+    }
+    user_pin = request.form.get("hsm_pin") # Get PIN from HTML form
+    if not user_pin:
+        return "HSM PIN is required for signing.", 400
+    # Cryptographic Data Signature
+    pgp_signature = sign_json_data(record, user_pin)
+    if pgp_signature:
+        record["data_signature"] = pgp_signature
+
+    json_path = os.path.join(RECORDS_DIR, f"{sha256_hash}.json")
+    with open(json_path, "w") as f:
+        json.dump(record, f, indent=4)
+        
+    update_manifest(record)
+    threading.Thread(target=sync_to_github, args=(json_path,)).start()
+    return send_file(stamped_pdf_buf, as_attachment=True, download_name=f"{final_ctrl}.pdf")
+
+@app.route('/ingest', methods=['POST'])
+def sovereign_ingest():
+    global client
+    try:
+        data = request.get_json(silent=True)
+        payload = json.loads(data['payload'].strip())
+        subject = payload.get('subject', {})
+
+        raw_str = f"{subject.get('PCN', '')}{subject.get('lName', '')}{subject.get('fName', '')}"
+        integrity_hash = hashlib.sha256(raw_str.encode()).hexdigest().upper()
+
+        doc = DocxTemplate(TEMPLATE_PATH)
+        context = {
+            'fName':     subject.get('fName'),
+            'mName':     subject.get('mName'),
+            'lName':     subject.get('lName'),
+            'Suffix':    subject.get('Suffix'),
+            'sex':       subject.get('sex'),
+            'DOB':       subject.get('DOB'),
+            'POB':       subject.get('POB'),
+            'PCN':       subject.get('PCN'),
+            'alg':       payload.get('alg'),
+            'signature': payload.get('signature'),
+            'Hash':      integrity_hash,
+            'Day':       datetime.datetime.now().strftime("%d"),
+            'MonthYear': datetime.datetime.now().strftime("%B %Y").upper(),
+            'Purok':     data.get('purok', 'N/A'),
+            'Purpose':   data.get('purpose', 'BARANGAY-CERT'),
+        }
+        doc.render(context)
+
+        temp_docx = f"/tmp/tmp_{integrity_hash[:8]}.docx"
+        doc.save(temp_docx)
+
+        subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', '/tmp', temp_docx], check=True)
+
+        pdf_path = f"/tmp/tmp_{integrity_hash[:8]}.pdf"
+        with open(pdf_path, 'rb') as f:
+            pdf_bytes = f.read()
+
+        os.remove(temp_docx)
+        os.remove(pdf_path)
+
+        sha256_hash = hashlib.sha256(pdf_bytes).hexdigest()
+
+        try:
+            tx = client.set(sha256_hash.encode(), b"VERIFIED_BY_ORP_ENGINE")
+        except Exception:
+            client = get_client()
+            tx = client.set(sha256_hash.encode(), b"VERIFIED_BY_ORP_ENGINE")
+
+        local_tz = pytz.timezone(TZ_NAME)
+        timestamp_ph = datetime.datetime.now(local_tz).strftime("%Y-%m-%d %I:%M %p PHT")
+        control_no = next_control_number()
+        doc_type = data.get('purpose', 'BARANGAY-CERT')
+        final_ctrl = f"Verified_{control_no}-{doc_type}"
+        verification_url = f"{GITHUB_PORTAL}?hash={sha256_hash}"
+
+        qr_buf, _ = generate_qr(sha256_hash)
+        stamped_pdf_buf = add_footer(pdf_bytes, sha256_hash, "ORP-IMMUTABLE-SIG", qr_buf, timestamp_ph, final_ctrl)
+
+        record = {
+            "status": "VERIFIED ✅",
+            "signer": SIGNER_NAME,
+            "position": f"{SIGNER_POS}, {LGU_NAME}",
+            "document_type": doc_type,
+            "control_number": final_ctrl,
+            "sha256_hash": sha256_hash,
+            "timestamp": timestamp_ph,
+            "immudb_transaction_id": tx.id,
+            "verification_url": verification_url,
+            "philid_pcn": subject.get('PCN'),
+            "philid_hash": integrity_hash
+        }
+
+        pgp_signature = sign_json_data(record)
+        if pgp_signature:
+            record["data_signature"] = pgp_signature
+
+        json_path = os.path.join(RECORDS_DIR, f"{sha256_hash}.json")
+        with open(json_path, 'w') as f:
+            json.dump(record, f, indent=4)
+            
+        update_manifest(record)
+        threading.Thread(target=sync_to_github, args=(json_path,)).start()
+
+        return send_file(stamped_pdf_buf, as_attachment=True, download_name=f"{final_ctrl}.pdf")
+
+    except Exception as e:
+        print(f"❌ [Sovereign Error] {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+def sign_with_hsm(data_hash, pin):
+    """Communicates with ESP32 to sign a hash using the HSM."""
+    try:
+        with serial.Serial(SER_PORT, BAUD, timeout=2) as ser:
+            # Send command to ESP32: SIGN:[PIN]:[HASH]
+            command = f"SIGN:{pin}:{data_hash}\n"
+            ser.write(command.encode())
+            response = ser.readline().decode().strip()
+            
+            if "ERROR" in response:
+                return None, response
+            return response, None # Assuming response is the signature
+    except Exception as e:
+        return None, str(e)
+
+@app.route('/upload', methods=['POST'])
+def handle_upload():
+    hsm_pin = request.form.get('hsm_pin')
+    doc_type = request.form.get('doc_type')
+    file = request.files.get('document')
+
+    if not hsm_pin or not file:
+        return jsonify({"message": "Missing PIN or File"}), 400
+
+    # 1. Compute Hash
+    file_content = file.read()
+    file_hash = hashlib.sha256(file_content).hexdigest()
+
+    # 2. Request Hardware Signature
+    signature, error = sign_with_hsm(file_hash, hsm_pin)
+    
+    if error:
+        return jsonify({"message": f"HSM Error: {error}"}), 403
+
+    # 3. Proceed to Anchor in immudb (Logic omitted for brevity)
+    # anchor_to_immudb(file_hash, signature, doc_type)
+
+    return jsonify({
+        "status": "success",
+        "hash": file_hash,
+        "signature": signature,
+        "control_no": f"ORP-{file_hash[:8].upper()}"
+    })
+
+if __name__ == "__main__":
+    port = int(os.getenv("FLASK_PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

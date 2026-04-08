@@ -1,0 +1,55 @@
+#!/bin/bash
+set -e
+
+# --- 1. Environment Setup ---
+# Use $HOME to ensure compatibility with /home/orp
+BIN_DIR="$HOME/bin"
+SRC_DIR="$HOME/immudb_src"
+mkdir -p "$BIN_DIR"
+
+echo "[*] Initializing environment in $HOME..."
+
+# --- 2. Dependency Management ---
+# Added sudo for DNF calls and kept the toolchain check
+echo "[*] Updating Fedora packages..."
+sudo dnf -y update
+
+echo "[*] Installing build dependencies..."
+sudo dnf -y install git make gcc gcc-c++ cmake clang golang
+
+echo "[*] Verifying toolchain versions..."
+git --version && go version
+
+# --- 3. Source Acquisition ---
+if [ ! -d "$SRC_DIR" ]; then
+  echo "[*] Cloning immudb source to $SRC_DIR..."
+  git clone --depth=1 --branch v1.10.0 https://github.com/codenotary/immudb.git "$SRC_DIR"
+fi
+
+cd "$SRC_DIR"
+
+# --- 4. The Build Phase ---
+# Check if binaries exist in the target BIN_DIR
+if [[ ! -f "$BIN_DIR/immudb" || ! -f "$BIN_DIR/immuclient" || ! -f "$BIN_DIR/immuadmin" ]]; then
+  echo "[*] Building immudb binaries..."
+  # Clean previous failed builds if they exist
+  make clean || true
+  make immudb immuclient immuadmin
+  
+  echo "[*] Deploying binaries to $BIN_DIR..."
+  cp immudb immuclient immuadmin "$BIN_DIR/"
+else
+  echo "[*] Binaries already present in $BIN_DIR, skipping rebuild."
+fi
+
+# --- 5. Final Verification ---
+echo "[*] Auditing binary integrity..."
+"$BIN_DIR/immudb" version || true
+
+# Add to PATH for the current session if not already there
+if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+    export PATH="$BIN_DIR:$PATH"
+    echo "[!] Added $BIN_DIR to current PATH session."
+fi
+
+echo "[*] Build and version check complete. Immudb is ready for ORP."

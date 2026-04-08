@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORP Engine | Operator Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="topbar-inner">
+            <div class="brand">
+                <div class="brand-badge">🏛️</div>
+                <div>
+                    <h1>ORP Engine</h1>
+                    <p>OpenResPublica TruthChain · Operator Portal</p>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="status-dot"></div>
+                <span>Engine Online</span>
+                &nbsp;·&nbsp;
+		<button id="lockBtn" class="logout-link">🔒 Lock Engine</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-section">Operations</div>
+            <button class="nav-item active" data-target="upload">
+                <span class="nav-icon">📄</span> PDF Stamp &amp; Anchor
+            </button>
+            <button class="nav-item" data-target="ingest">
+                <span class="nav-icon">🪪</span> PhilID Ingest
+                <span class="nav-badge">NEW</span>
+            </button>
+
+            <div class="sidebar-section">Audit</div>
+            <button class="nav-item" data-target="ledger">
+                <span class="nav-icon">📋</span> Local Ledger
+            </button>
+            <a class="nav-item" href="https://openrespublica.github.io/records.html" target="_blank">
+                <span class="nav-icon">🌐</span> Public Ledger ↗
+            </a>
+            <a class="nav-item" href="https://openrespublica.github.io/index.html" target="_blank">
+                <span class="nav-icon">🔍</span> Verify ↗
+            </a>
+
+            <div class="sidebar-section">System</div>
+            <button class="nav-item" data-target="dashboard">
+                <span class="nav-icon">📊</span> Dashboard
+            </button>
+            <a class="nav-item" href="http://localhost:8080" target="_blank">
+                <span class="nav-icon">🗄️</span> immudb Console ↗
+            </a>
+        </aside>
+
+        <div class="main-content">
+            
+            <div class="panel" id="panel-dashboard">
+                <div class="panel-header">
+                    <div class="panel-icon">📊</div>
+                    <div>
+                        <div class="panel-title">System Dashboard</div>
+                        <div class="panel-subtitle">Live status of the TruthChain stack</div>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="stats-row" style="margin-bottom:1.25rem;">
+                        <div class="stat-card"><div class="stat-value" id="dTotal">—</div><div class="stat-label">Total Anchored</div></div>
+                        <div class="stat-card" style="border-top:3px solid var(--gold);"><div class="stat-value" style="color:#8a6a14;" id="dLatest">—</div><div class="stat-label">Last Issue</div></div>
+                        <div class="stat-card"><div class="stat-value" style="color:#1E7A3E;">✓</div><div class="stat-label">immudb Status</div></div>
+                        <div class="stat-card"><div class="stat-value">2026</div><div class="stat-label">Ledger Year</div></div>
+                    </div>
+
+                    <div class="civic-section" style="margin-bottom:0;">
+                        <span class="civic-section-id">01 — System Status</span>
+                        <div class="civic-body" style="max-width:100%;">
+                            <p>The ORP Engine is operational. Documents submitted through the PDF Stamp or PhilID Ingest routes are automatically hashed, anchored to the local immudb instance, and published to the public ledger at <em>openrespublica.github.io</em> within 60 to 90 seconds of issuance.</p>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:1.25rem;">
+                        <div class="alert alert-warning">🔒 This portal is restricted to authorized barangay operators only. All access and issuance actions are logged and anchored to the immutable ledger.</div>
+                        <div class="alert alert-info">🔗 Public ledger syncs to <strong>openrespublica.github.io</strong> within 60–90 seconds. Records are cryptographically immutable once pushed.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel active" id="panel-upload">
+                <div class="panel-header">
+                    <div class="panel-icon">📄</div>
+                    <div>
+                        <div class="panel-title">PDF Stamp &amp; Anchor</div>
+                        <div class="panel-subtitle">Upload an existing PDF to hash, stamp, and anchor to the immutable ledger</div>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="civic-section" style="margin-bottom:1.25rem;">
+                        <span class="civic-section-id">01 — Upload</span>
+                        <div class="civic-body" style="max-width:100%;font-size:0.83rem;">
+                            <p>Select a PDF document for cryptographic processing. The system will compute a SHA-256 fingerprint, anchor it to immudb, stamp the document with a QR code and control number, and publish the record to the public ledger automatically.</p>
+                        </div>
+                    </div>
+
+                    <form id="uploadForm">
+                        <div class="form-group">
+                            <label class="form-label">Document File</label>
+                            <div class="file-drop" id="dropZone">
+                                <input type="file" id="pdfFile" accept=".pdf" style="display:none">
+                                <div class="file-drop-icon">📄</div>
+                                <p><strong>Click to browse</strong> or drag &amp; drop</p>
+                                <p style="margin-top:0.2rem;font-size:0.75rem;">PDF files only &nbsp;·&nbsp; Max 20MB</p>
+                                <span id="selectedFileName" class="file-name-badge" style="display:none;"></span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Document Type</label>
+                            <select class="form-select" id="uploadDocType">
+                                <option value="BARANGAY-CERT">Barangay Certificate</option>
+                                <option value="INDIGENCY-CERT">Certificate of Indigency</option>
+                                <option value="RESIDENCY-CERT">Certificate of Residency</option>
+                                <option value="CLEARANCE">Barangay Clearance</option>
+                                <option value="BUSINESS-PERMIT">Business Permit</option>
+                                <option value="DICT-INQUIRY">DICT Inquiry (RA 11337)</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-submit" id="uploadBtn">🔏 Stamp, Hash &amp; Anchor to Ledger</button>
+                    </form>
+
+                    <div class="progress-wrap" id="uploadProgress">
+                        <div class="progress-steps">
+                            <div class="progress-step" id="us1">Hashing</div>
+                            <div class="progress-step" id="us2">Anchoring</div>
+                            <div class="progress-step" id="us3">Stamping</div>
+                            <div class="progress-step" id="us4">Publishing</div>
+                        </div>
+                        <div class="progress-bar-wrap"><div class="progress-bar" id="uploadBar"></div></div>
+                    </div>
+                    <div class="result-box" id="uploadResult"></div>
+                </div>
+            </div>
+
+            <div class="panel" id="panel-ingest">
+                <div class="panel-header">
+                    <div class="panel-icon">🪪</div>
+                    <div>
+                        <div class="panel-title">PhilID Sovereign Ingest</div>
+                        <div class="panel-subtitle">Auto-generate a barangay certificate from a PhilID JSON payload</div>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <div class="civic-section" style="margin-bottom:1.25rem;">
+                        <span class="civic-section-id">01 — Sovereign Pipeline</span>
+                        <div class="civic-body" style="max-width:100%;font-size:0.83rem;">
+                            <p>Paste the JSON payload received from the PhilID mobile scan. The system will automatically populate the template, convert it to PDF, anchor it to immudb, and publish it to the public ledger.</p>
+                        </div>
+                    </div>
+
+                    <form id="ingestForm">
+                        <div class="form-group">
+                            <label class="form-label">PhilID JSON Payload</label>
+                            <textarea class="form-textarea" id="philidPayload" placeholder='{"subject":{"fName":"Juan","mName":"dela","lName":"Cruz",...},"alg":"ES256","signature":"..."}'></textarea>
+                            <div class="form-hint">Paste the raw JSON payload from the PhilID scanner. Sensitive data never leaves this server.</div>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Purok / Address</label>
+                                <input type="text" class="form-input" id="ingestPurok" value="Purok San Lorenzo" placeholder="e.g. Purok San Lorenzo">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Purpose of Certificate</label>
+                                <select class="form-select" id="ingestPurpose">
+                                    <option value="BARANGAY-CERT">Barangay Certificate</option>
+                                    <option value="INDIGENCY-CERT">Certificate of Indigency</option>
+                                    <option value="RESIDENCY-CERT">Certificate of Residency</option>
+                                    <option value="CLEARANCE">Barangay Clearance</option>
+                                    <option value="EMPLOYMENT">Employment Purpose</option>
+                                    <option value="OTHER">Other / General Purpose</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="or-divider">or load sample data</div>
+                        <button type="button" class="btn-ghost" id="loadSampleBtn">📋 Load Sample PhilID Payload</button>
+                        <button type="submit" class="btn-submit" id="ingestBtn">🪪 Generate Certificate &amp; Anchor to Ledger</button>
+                    </form>
+
+                    <div class="progress-wrap" id="ingestProgress">
+                        <div class="progress-steps">
+                            <div class="progress-step" id="is1">Parsing</div>
+                            <div class="progress-step" id="is2">Generating</div>
+                            <div class="progress-step" id="is3">Converting</div>
+                            <div class="progress-step" id="is4">Anchoring</div>
+                            <div class="progress-step" id="is5">Publishing</div>
+                        </div>
+                        <div class="progress-bar-wrap"><div class="progress-bar" id="ingestBar"></div></div>
+                    </div>
+                    <div class="result-box" id="ingestResult"></div>
+                </div>
+            </div>
+
+            <div class="panel" id="panel-ledger">
+                <div class="panel-header">
+                    <div class="panel-icon">📋</div>
+                    <div>
+                        <div class="panel-title">Local Ledger</div>
+                        <div class="panel-subtitle">Most recent anchored records from the public manifest</div>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Control No.</th>
+                                <th>Type</th>
+                                <th>Timestamp</th>
+                                <th>Fingerprint</th>
+                                <th>Tx ID</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledgerBody">
+                            <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--muted);">
+                                <div class="spinner"></div>Loading...
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-footer">
+                    <span id="ledgerCount">—</span>
+                    <div style="display:flex;gap:0.35rem;">
+                        <button class="page-btn" id="lPrev" disabled>← Prev</button>
+                        <button class="page-btn" id="lNext" disabled>Next →</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <footer class="site-footer">
+        OpenResPublica TruthChain &nbsp;·&nbsp; ORP Engine Operator Portal &nbsp;·&nbsp;
+        Barangay Buñao, Dumaguete City &nbsp;·&nbsp; Secured by immudb &amp; Ed25519
+    </footer>
+
+    <script src="/static/js/portal.js"></script>
+</body>
+</html>

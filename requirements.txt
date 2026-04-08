@@ -1,0 +1,11 @@
+flask
+python-gnupg
+immudb-py
+pypdf
+reportlab
+qrcode[pil]
+python-dotenv
+docxtpl
+pytz
+pyserial
+argon2-cffi

@@ -1,0 +1,26 @@
+# --- 1. Institutional Identity ---
+LGU_NAME="Barangay Bunao, Dumaguete City"
+LGU_SIGNER_NAME="MARCO C. FERNANDEZ"
+LGU_SIGNER_POSITION="Sovereign Node Operator"
+LGU_TIMEZONE="Asia/Manila"
+
+# --- 2. Immutable Ledger (immudb) ---
+IMMUDB_HOST=localhost:3322
+IMMUDB_USER=immudb
+IMMUDB_PASS=$argon2id$v=19$m=65536,t=3,p=4$hSMvwx2JSaenDnOBPA0YQA$6O3jryuV1X50Y4G3S3H+ripRLl/Kgoayac+ts/qB/G0
+IMMUDB_DB=defaultdb
+
+# --- 4. File System Paths ---
+# Use the full path to your Fedora home directory
+GITHUB_REPO_PATH="/home/openrespublica/openrespublica.github.io"
+TEMPLATE_DOCX_PATH="templates/barangay_template.docx"
+
+# --- 5. Networking & Public Identity ---
+# This is the URL where the QR codes will point
+GITHUB_PORTAL_URL="https://openrespublica.github.io/verify.html"
+FLASK_PORT=5000
+DEBUG_MODE="True"
+
+# --- 6. Cryptography (GPG/SSH) ---
+OPERATOR_GPG_EMAIL="marcofernandez0204@gmail.com"
+GNUPGHOME="/home/openrespublica/.gnupg"

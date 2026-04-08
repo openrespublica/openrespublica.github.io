@@ -1,0 +1,33 @@
+#!/bin/bash
+# immudb-setup.sh
+set -e
+
+BIN_DIR="$HOME/bin"
+SRC_DIR="$HOME/immudb_src"
+DATA_DIR="$HOME/immudb_data"
+
+echo "[*] Initializing environment in $HOME..."
+mkdir -p "$BIN_DIR"
+mkdir -p "$DATA_DIR"
+
+echo "[*] Updating Fedora packages and dependencies..."
+sudo dnf -y update
+sudo dnf -y install git make gcc gcc-c++ cmake clang golang
+
+if [ ! -d "$SRC_DIR" ]; then
+  echo "[*] Cloning immudb source to $SRC_DIR..."
+  git clone --depth=1 --branch v1.10.0 https://github.com/codenotary/immudb.git "$SRC_DIR"
+fi
+
+cd "$SRC_DIR"
+
+if [[ ! -f "$BIN_DIR/immudb" ]]; then
+  echo "[*] Building immudb binaries..."
+  make clean || true
+  make immudb immuclient immuadmin
+  cp immudb immuclient immuadmin "$BIN_DIR/"
+else
+  echo "[*] Binaries already present in $BIN_DIR, skipping rebuild."
+fi
+
+echo "[*] Build complete. Persistent data directory ready at $DATA_DIR"
