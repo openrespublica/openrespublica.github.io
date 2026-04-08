@@ -1,0 +1,18 @@
+[
+    {
+        "status": "VERIFIED \u2705",
+        "signer": "Authorized",
+        "position": "Barangay, Barangay",
+        "document_type": "BARANGAY-CERT",
+        "control_number": "Verified_2026-0024-BARANGAY-CERT",
+        "sha256_hash": "04adbaded9ab004e860f5cd9ff4e23c98fd8ddf32b3a5b2575f4b7d858c221a6",
+        "timestamp": "2026-04-08 08:50 PM PHT",
+        "immudb_transaction_id": 4,
+        "verification_url": "https://openrespublica.github.io/verify.html?hash=04adbaded9ab004e860f5cd9ff4e23c98fd8ddf32b3a5b2575f4b7d858c221a6",
+        "data_signature": {
+            "gpg_signature": "-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\n{\"control_number\": \"Verified_2026-0024-BARANGAY-CERT\", \"document_type\": \"BARANGAY-CERT\", \"immudb_transaction_id\": 4, \"position\": \"Barangay, Barangay\", \"sha256_hash\": \"04adbaded9ab004e860f5cd9ff4e23c98fd8ddf32b3a5b2575f4b7d858c221a6\", \"signer\": \"Authorized\", \"status\": \"VERIFIED \\u2705\", \"timestamp\": \"2026-04-08 08:50 PM PHT\", \"verification_url\": \"https://openrespublica.github.io/verify.html?hash=04adbaded9ab004e860f5cd9ff4e23c98fd8ddf32b3a5b2575f4b7d858c221a6\"}\n-----BEGIN PGP SIGNATURE-----\n\niJMEARYKADsWIQS5NEa0jzX0eO8wDuKiq3jrmgkYsQUCadZPDR0cbWFyY29mZXJu\nYW5kZXowMjA0QGdtYWlsLmNvbQAKCRCiq3jrmgkYsW4vAQDIKp8E1wH3F1z5JIEe\nyMH0DjwUtOT36c37RDnmJWZzUQD+P6ZTz+hR6z2Z2/6q9tLHzMK2aFXsk7rIxeYw\nf0B+HwY=\n=nX5e\n-----END PGP SIGNATURE-----\n",
+            "hash_anchor": "21d39efafa1b326a7ebef53ba62129e2cf11a51957415b937cf711b12eecf29d",
+            "integrity_scope": "EPHEMERAL_RAM_LEGAL_SIGNATURE"
+        }
+    }
+]

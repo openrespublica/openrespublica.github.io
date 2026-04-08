@@ -1,0 +1,18 @@
+{
+    "status": "VERIFIED \u2705",
+    "signer": "MARCO C. FERNANDEZ",
+    "position": "Sovereign Node Operator, Barangay Bunao, Dumaguete City",
+    "document_type": "SCHOLARSHIP",
+    "control_number": "Verified_2026-0021-SCHOLARSHIP",
+    "sha256_hash": "abe6e49f927f85801d8ecc74bc91bdc3611d28653a5e3d8b39d0a9fbaa8eeb67",
+    "timestamp": "2026-03-30 08:48 AM PHT",
+    "immudb_transaction_id": 4,
+    "verification_url": "https://openrespublica.github.io/verify.html?hash=abe6e49f927f85801d8ecc74bc91bdc3611d28653a5e3d8b39d0a9fbaa8eeb67",
+    "philid_pcn": "1234-5678-9012-3456",
+    "philid_hash": "B51B7AF19E51E0ABED509E4D4E3A7220677B917300F9A853F7ACB8E433E4520C",
+    "data_signature": {
+        "hardware_seal": "37D08E7C54D9143F0B281C78AFA32DDD4F485A6679F32B9715157ACF47EE30511B8A093B3E6ABF1417820B94C74A755A60AD1A3DDBA8D6BB92DDC911DA55B00B",
+        "gpg_signature": "",
+        "hash_anchor": "48fcc36b17796f937aca62c61d057cf9716af8c7887ab76f3a00af278708e482"
+    }
+}

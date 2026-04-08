@@ -1,0 +1,18 @@
+{
+    "status": "VERIFIED \u2705",
+    "signer": "Authorized Signatory",
+    "position": "Official, Local Government Unit",
+    "document_type": "BARANGAY-CERT",
+    "control_number": "Verified_2026-0018-BARANGAY-CERT",
+    "sha256_hash": "b63355e669145a59f567b4ad81b6973def9b1e1d466de734f832a6f775c6b6ac",
+    "timestamp": "2026-03-30 07:59 AM PHT",
+    "immudb_transaction_id": 1,
+    "verification_url": "https://openrespublica.github.io/verify.html?hash=b63355e669145a59f567b4ad81b6973def9b1e1d466de734f832a6f775c6b6ac",
+    "philid_pcn": "1234-5678-9012-3456",
+    "philid_hash": "B51B7AF19E51E0ABED509E4D4E3A7220677B917300F9A853F7ACB8E433E4520C",
+    "data_signature": {
+        "hardware_seal": "HSM_OFFLINE",
+        "gpg_signature": "GPG_DISABLED",
+        "hash_anchor": "fa87680a25a5acf69509953466e2947b0e6afbcd7b1dddbed2e171b40241f5ff"
+    }
+}

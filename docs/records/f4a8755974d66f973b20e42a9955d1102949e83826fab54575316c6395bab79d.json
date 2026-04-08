@@ -1,0 +1,14 @@
+{
+    "status": "VERIFIED \u2705",
+    "signer": "HON. RAQUEL A. SAMSON",
+    "position": "Punong Barangay, LGU - Barangay Bu\u00f1ao, Dumaguete City",
+    "document_type": "BARANGAY-CERT",
+    "control_number": "Verified_2026-0004-BARANGAY-CERT",
+    "sha256_hash": "f4a8755974d66f973b20e42a9955d1102949e83826fab54575316c6395bab79d",
+    "timestamp": "2026-03-25 08:23 AM PHT",
+    "immudb_transaction_id": 4,
+    "verification_url": "https://openrespublica.github.io/verify.html?hash=f4a8755974d66f973b20e42a9955d1102949e83826fab54575316c6395bab79d",
+    "philid_pcn": "1234-5678-9012-3456",
+    "philid_hash": "B51B7AF19E51E0ABED509E4D4E3A7220677B917300F9A853F7ACB8E433E4520C",
+    "data_signature": "-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\n{\"control_number\": \"Verified_2026-0004-BARANGAY-CERT\", \"document_type\": \"BARANGAY-CERT\", \"immudb_transaction_id\": 4, \"philid_hash\": \"B51B7AF19E51E0ABED509E4D4E3A7220677B917300F9A853F7ACB8E433E4520C\", \"philid_pcn\": \"1234-5678-9012-3456\", \"position\": \"Punong Barangay, LGU - Barangay Bu\\u00f1ao, Dumaguete City\", \"sha256_hash\": \"f4a8755974d66f973b20e42a9955d1102949e83826fab54575316c6395bab79d\", \"signer\": \"HON. RAQUEL A. SAMSON\", \"status\": \"VERIFIED \\u2705\", \"timestamp\": \"2026-03-25 08:23 AM PHT\", \"verification_url\": \"https://openrespublica.github.io/verify.html?hash=f4a8755974d66f973b20e42a9955d1102949e83826fab54575316c6395bab79d\"}\n-----BEGIN PGP SIGNATURE-----\n\niJMEARYKADsWIQS6aK6O7OgDRLPPbMWPFrO2EOFiGQUCacMrER0cbWFyY29mZXJu\nYW5kZXowMjA0QGdtYWlsLmNvbQAKCRCPFrO2EOFiGTaiAQDjbnghFLOSk8GU3iuA\nvbjbtFe6TqBJPK+ZRefpVSFYMwD/ePuexGfUpVqjWsP7WZZjHcOMUFXxNbWEeNyi\nMiR/mgg=\n=QcPo\n-----END PGP SIGNATURE-----\n"
+}

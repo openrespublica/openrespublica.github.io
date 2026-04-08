@@ -1,0 +1,18 @@
+{
+    "status": "VERIFIED \u2705",
+    "signer": "MARCO C. FERNANDEZ",
+    "position": "Sovereign Node Operator, Barangay Bunao, Dumaguete City",
+    "document_type": "BARANGAY-CERT",
+    "control_number": "Verified_2026-0020-BARANGAY-CERT",
+    "sha256_hash": "4137168c12012255e75d3db6f6743cb1638eb81bff3562ec15af3d86693e81ab",
+    "timestamp": "2026-03-30 08:32 AM PHT",
+    "immudb_transaction_id": 3,
+    "verification_url": "https://openrespublica.github.io/verify.html?hash=4137168c12012255e75d3db6f6743cb1638eb81bff3562ec15af3d86693e81ab",
+    "philid_pcn": "1234-5678-9012-3456",
+    "philid_hash": "B51B7AF19E51E0ABED509E4D4E3A7220677B917300F9A853F7ACB8E433E4520C",
+    "data_signature": {
+        "hardware_seal": "3F3E8E7BA6C26F6FA08FE2296B7AC3FB0B2E52A9E0BD75BED6C43CEB4EB651B4AB83D7D05AF87ACAA77F74E10623C6DFEAFABFC221FC666713C73BF50FACF40F",
+        "gpg_signature": "",
+        "hash_anchor": "d316851b355fc2a342fd718b3fc67c2d2d2e962bbc55d19e16f063c7e4266647"
+    }
+}
