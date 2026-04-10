@@ -1,0 +1,113 @@
+#!/bin/bash
+# run_orp-gum.sh - Sovereign UI Edition
+set -e
+
+# --- UI BRANDING ---
+ACCENT="#004a99"  # Deep Blue
+GOLD="#FFD700"    # Stars Gold
+WARN="#ff4d4d"    # Red
+SUCCESS="#2ecc71"  # Green
+
+# --- 1. ENVIRONMENT LOAD ---
+gum spin --spinner dot --title "Loading Sovereign Environment..." -- sleep 0.5
+if [ -f .env ]; then
+    set -a; source .env; set +a
+else
+    gum style --foreground "$WARN" "CRITICAL: .env file missing."
+    exit 1
+fi
+
+# --- 2. THE GHOST IDENTITY (RAM DISK) ---
+# Ensuring absolute isolation in volatile memory
+cleanup() {
+    echo ""
+    gum style --foreground "$WARN" " [!] Locking Vault & Wiping Volatile Memory..."
+    [ -n "$IMMUDB_PID" ] && kill "$IMMUDB_PID" 2>/dev/null || true
+    if [ -n "$GNUPGHOME" ]; then
+        gpgconf --kill all 2>/dev/null || true
+        rm -rf "$GNUPGHOME" 2>/dev/null || true
+        [ -d "/dev/shm/orp_identity" ] && rm -rf "/dev/shm/orp_identity" || true
+    fi
+    gum style --foreground "$SUCCESS" " [*] Session terminated securely."
+}
+trap cleanup EXIT INT TERM
+
+# Create ephemeral home
+export GNUPGHOME=$(mktemp -d -p /dev/shm .orp-gpg-XXXXXX)
+chmod 700 "$GNUPGHOME"
+echo "enable-ssh-support" > "$GNUPGHOME/gpg-agent.conf"
+echo "allow-loopback-pinentry" >> "$GNUPGHOME/gpg-agent.conf"
+export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+gpg-connect-agent reloadagent /bye > /dev/null 2>&1
+
+# --- 3. DATABASE CHECK ---
+if nc -z 127.0.0.1 3322; then
+    gum style --foreground "$SUCCESS" " [✔] immudb Vault detected."
+    IMMUDB_PID=$(pgrep -f "immudb.*3322" || echo "")
+else
+    gum spin --spinner line --title "Igniting Hardened immudb Vault..." -- sleep 1
+    ~/bin/immudb \
+      --dir "$HOME/.orp_vault/data" \
+      --address 127.0.0.1 \
+      --port 3322 \
+      --pidfile "$HOME/.orp_vault/immudb.pid" \
+      --auth=true --maintenance=false > "$HOME/.orp_vault/immudb.log" 2>&1 &
+    IMMUDB_PID=$!
+    sleep 1
+fi
+
+# --- 4. IDENTITY FORGING ---
+# Generate session-based keys that expire in 24h
+gum spin --spinner pulse --title "Forging Session Keys for $LGU_SIGNER_NAME..." -- bash -c "
+cat > '$GNUPGHOME/gpg-gen-spec' <<EOF
+Key-Type: EDDSA
+Key-Curve: ed25519
+Name-Real: $LGU_SIGNER_NAME
+Name-Email: $OPERATOR_GPG_EMAIL
+Expire-Date: 1d
+%no-protection
+%commit
+EOF
+gpg --batch --generate-key '$GNUPGHOME/gpg-gen-spec' > /dev/null 2>&1
+"
+
+# Bind to SSH Agent
+KEYGRIP=$(gpg --with-keygrip -K "$OPERATOR_GPG_EMAIL" | grep "Keygrip" | head -n 1 | awk '{print $3}')
+echo "$KEYGRIP 0" > "$GNUPGHOME/sshcontrol"
+gpg-connect-agent updatestartuptty /bye > /dev/null 2>&1
+mkdir -p "/dev/shm/orp_identity"
+gpg --export-ssh-key "$OPERATOR_GPG_EMAIL" > "/dev/shm/orp_identity/session.pub"
+KEY_ID=$(gpg --list-secret-keys --with-colons "$OPERATOR_GPG_EMAIL" | grep "^sec" | awk -F: '{print $5}')
+
+# --- 5. THE DASHBOARD ---
+clear
+gum style \
+    --border double \
+    --margin "1" --padding "1 2" \
+    --border-foreground "$ACCENT" --align center \
+    "OPENRESPUBLICA" "INFORMATION TECHNOLOGY SOLUTIONS"
+
+echo "$(gum style --foreground "$GOLD" --align center "★ ★ ★")"
+gum style --bold " Sovereign Node: " "$LGU_NAME"
+gum style " Operator:       " "$LGU_SIGNER_NAME ($KEY_ID)"
+echo ""
+gum style --bold "📋 Session SSH Key (Required for GitHub):"
+gum style --faint "$(cat /dev/shm/orp_identity/session.pub)"
+echo ""
+
+# --- 6. LAUNCH GATE ---
+# This is the interactive blocker
+if gum confirm "Are keys synced to GitHub Settings?"; then
+    clear
+    gum style --border normal --padding "1 2" --border-foreground "$SUCCESS" "VAULT UNLOCKED: ENGINE START"
+    
+    # Final environment bridge
+    export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+    export GNUPGHOME="$GNUPGHOME"
+    
+    # Launch main engine
+    ./.venv/bin/python3 main.py
+else
+    gum style --foreground "$WARN" "Launch aborted. Cleaning up..."
+    exit 0
+fi

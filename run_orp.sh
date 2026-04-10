@@ -1,153 +1,40 @@
 #!/bin/bash
-# run_orp.sh
-set -e
+# run_orp.sh — Plain terminal launcher for ORP Engine
+set -euo pipefail
 
-# --- 1. Load Configuration ---
-#if [ -f .env ]; then
-#    export $(grep -v '^#' .env | xargs)
-#else
-#    echo "CRITICAL: .env file missing."
-#    exit 1
-#fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./_orp_core.sh
+source "$SCRIPT_DIR/_orp_core.sh"
 
-# NEW: Source the RAM-disk secrets for the database
-#if [ -f "$HOME/.identity/db_secrets.env" ]; then
-#    source "$HOME/.identity/db_secrets.env"
-#else
-#    echo "CRITICAL: RAM secrets not found at ~/.identity/db_secrets.env"
-#    exit 1
-#fi
-# --- 1. Load Configuration ---
-if [ -f .env ]; then
-    # Use set -a to export all variables defined in the file automatically
-    set -a
-    source .env
-    set +a
-else
-    echo "CRITICAL: .env file missing."
-    exit 1
-fi
+trap orp_cleanup EXIT INT TERM
 
-# Source the RAM-disk secrets
-if [ -f "$HOME/.identity/db_secrets.env" ]; then
-    set -a
-    source "$HOME/.identity/db_secrets.env"
-    set +a
-else
-    echo "CRITICAL: RAM secrets not found at ~/.identity/db_secrets.env"
-    exit 1
-fi
-# --- 2. Setup Cleanup Trap ---
-cleanup() {
-    echo -e "\n[!] Shutting down ORP Engine..."
-    [ -n "$IMMUDB_PID" ] && kill "$IMMUDB_PID" 2>/dev/null || true
-    if [ -n "$GNUPGHOME" ]; then
-        echo "[*] Wiping ephemeral RAM directory..."
-        gpgconf --kill all 2>/dev/null || true
-        rm -rf "$GNUPGHOME" 2>/dev/null || true
-        [ -d "/dev/shm/orp_identity" ] && rm -rf "/dev/shm/orp_identity" || true
-    fi
-    echo "[*] Session terminated securely."
-}
-trap cleanup EXIT INT TERM
+orp_load_env
+orp_forge_identity
+orp_start_vault
+orp_configure_git
 
-# --- 3. Create Ephemeral RAM Disk (GPG) ---
-export GNUPGHOME=$(mktemp -d -p /dev/shm .orp-gpg-XXXXXX)
-chmod 700 "$GNUPGHOME"
-echo "enable-ssh-support" > "$GNUPGHOME/gpg-agent.conf"
-echo "default-cache-ttl 86400" >> "$GNUPGHOME/gpg-agent.conf"
-export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
-echo "allow-loopback-pinentry" >> "$GNUPGHOME/gpg-agent.conf"
-gpg-connect-agent reloadagent /bye
+clear
+cat <<EOF
+======================================================
+          ORP SESSION CHECK-IN COMPLETE
+======================================================
+Identity:   $LGU_SIGNER_NAME
+GPG ID:     $KEY_ID
+SSH Socket: $SSH_AUTH_SOCK
+======================================================
 
-# --- 4. Hardened Database Startup ---
-# --- 4. Hardened Database Connection/Startup ---
-echo "[*] Checking for existing immudb Vault on 3322..."
+--- BEGIN SSH PUBLIC KEY ---
+$(cat "$ORP_IDENTITY_DIR/session.pub")
+--- END SSH PUBLIC KEY ---
 
-if nc -z 127.0.0.1 3322; then
-    echo "[!] Vault already running. Connecting to existing instance."
-    # Grab the PID of the existing immudb to ensure our cleanup trap works
-    IMMUDB_PID=$(pgrep -f "immudb.*3322")
-else
-    echo "[*] No vault detected. Starting fresh hardened instance..."
-    ~/bin/immudb \
-      --dir "$HOME/.orp_vault/data" \
-      --address 127.0.0.1 \
-      --port 3322 \
-      --pidfile "$HOME/.orp_vault/immudb.pid" \
-      --auth=true \
-      --maintenance=false > "$HOME/.orp_vault/immudb.log" 2>&1 &
-    IMMUDB_PID=$!
-    
-    # Wait for it to initialize
-    sleep 2
-fi
-# --- 5. Key Generation ---
-echo "[*] Generating ED25519 identity for $OPERATOR_GPG_EMAIL..."
-cat > "$GNUPGHOME/gpg-gen-spec" <<EOF
-Key-Type: EDDSA
-Key-Curve: ed25519
-Key-Usage: auth,sign
-Name-Real: $LGU_SIGNER_NAME
-Name-Email: $OPERATOR_GPG_EMAIL
-Expire-Date: 1d
-%no-protection
-%commit
+--- BEGIN GPG PUBLIC KEY ---
+$(cat "$ORP_IDENTITY_DIR/session.gpg")
+--- END GPG PUBLIC KEY ---
+
+======================================================
+[!] ACTION: Paste the SSH key to GitHub Settings now.
+======================================================
 EOF
 
-gpg --batch --generate-key "$GNUPGHOME/gpg-gen-spec" > /dev/null 2>&1
-
-# --- 6. Bridge to SSH ---
-sleep 1
-KEYGRIP=$(gpg --with-keygrip -K "$OPERATOR_GPG_EMAIL" | grep "Keygrip" | head -n 1 | awk '{print $3}')
-if [ -z "$KEYGRIP" ]; then
-    echo "CRITICAL: Could not find Keygrip for generated key."
-    exit 1
-fi
-echo "$KEYGRIP 0" > "$GNUPGHOME/sshcontrol"
-gpg-connect-agent updatestartuptty /bye > /dev/null 2>&1
-
-# --- 7. Export Public Fragments ---
-export ORP_IDENTITY_DIR="/dev/shm/orp_identity"
-mkdir -p "$ORP_IDENTITY_DIR"
-gpg --export-ssh-key "$OPERATOR_GPG_EMAIL" > "$ORP_IDENTITY_DIR/session.pub"
-gpg --export --armor "$OPERATOR_GPG_EMAIL" > "$ORP_IDENTITY_DIR/session.gpg"
-
-# --- 8. Git Config ---
-KEY_ID=$(gpg --list-secret-keys --with-colons "$OPERATOR_GPG_EMAIL" | grep "^sec" | awk -F: '{print $5}')
-cd "$GITHUB_REPO_PATH"
-git config --local user.name "$LGU_SIGNER_NAME"
-git config --local user.email "$OPERATOR_GPG_EMAIL"
-git config --local user.signingkey "$KEY_ID"
-git config --local commit.gpgsign true
-
-# --- 9. THE FLASH & WAIT ---
-clear
-echo "======================================================"
-echo "          ORP SESSION CHECK-IN COMPLETE               "
-echo "======================================================"
-echo "Identity:   $LGU_SIGNER_NAME"
-echo "GPG ID:     $KEY_ID"
-echo "SSH Socket: $SSH_AUTH_SOCK"
-echo "======================================================"
-echo ""
-echo "--- BEGIN SSH PUBLIC KEY ---"
-cat "$ORP_IDENTITY_DIR/session.pub"
-echo "--- END SSH PUBLIC KEY ---"
-echo ""
-echo "--- BEGIN GPG PUBLIC KEY ---"
-cat "$ORP_IDENTITY_DIR/session.gpg"
-echo "--- END GPG PUBLIC KEY ---"
-echo ""
-echo "======================================================"
-echo "[!] ACTION: Paste the SSH key to GitHub Settings now."
-echo "======================================================"
-read -p "Press [ENTER] after pasting to start Flask... " confirm
-
-# --- 10. Launch ---
-# Corrected the venv path to .venv
-export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
-export GNUPGHOME="$GNUPGHOME"
-
-echo "[*] Launching ORP Engine Engine..."
-./.venv/bin/python3 main.py
+read -rp "Press [ENTER] after pasting to start Flask... "
+orp_launch_engine
