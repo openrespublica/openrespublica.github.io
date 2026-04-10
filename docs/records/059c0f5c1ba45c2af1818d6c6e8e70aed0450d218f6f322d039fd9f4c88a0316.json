@@ -1,0 +1,15 @@
+{
+    "status": "VERIFIED \u2705",
+    "document_type": "BARANGAY-CERT",
+    "control_number": "Verified_2026-0027-BARANGAY-CERT",
+    "sha256_hash": "059c0f5c1ba45c2af1818d6c6e8e70aed0450d218f6f322d039fd9f4c88a0316",
+    "timestamp": "2026-04-10 11:52 AM PHT",
+    "immudb_transaction_id": 1,
+    "philid_pcn": "1234-5678-9012-3456",
+    "philid_hash": "B51B7AF19E51E0ABED509E4D4E3A7220677B917300F9A853F7ACB8E433E4520C",
+    "data_signature": {
+        "gpg_signature": "-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\n{\"control_number\": \"Verified_2026-0027-BARANGAY-CERT\", \"document_type\": \"BARANGAY-CERT\", \"immudb_transaction_id\": 1, \"philid_hash\": \"B51B7AF19E51E0ABED509E4D4E3A7220677B917300F9A853F7ACB8E433E4520C\", \"philid_pcn\": \"1234-5678-9012-3456\", \"sha256_hash\": \"059c0f5c1ba45c2af1818d6c6e8e70aed0450d218f6f322d039fd9f4c88a0316\", \"status\": \"VERIFIED \\u2705\", \"timestamp\": \"2026-04-10 11:52 AM PHT\"}\n-----BEGIN PGP SIGNATURE-----\n\niJQEARYKADwWIQRoHstH4LFdnqbSseXVzQ7C/MulrAUCadh0Eh4cbWFyY29lZmVy\nbmFuZGV6MDIwNEBnbWFpbC5jb20ACgkQ1c0OwvzLpaxwzgEA9E/jqT1KeWk8i4Ox\nrVuGdIfuAfn3GonyF0QdA5pdqBoBAOj/67XQs+oACzMqOapo8P9Guk01P3FURfNg\nMpEs9zIF\n=ikH5\n-----END PGP SIGNATURE-----\n",
+        "hash_anchor": "2b29b07272754b761ebe97b3ab78713a1ffcdaaf50b06f609a5747ac203f2999",
+        "integrity_scope": "EPHEMERAL_RAM_LEGAL_SIGNATURE"
+    }
+}

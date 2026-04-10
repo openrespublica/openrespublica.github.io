@@ -43,42 +43,47 @@ RECORDS_DIR = os.path.join(REPO_PATH, "docs", "records")
 CONTROL_FILE = os.path.join(REPO_PATH, "docs", "control_number.txt")
 
 # --- 2. INITIALIZATION ---
-app = Flask(__name__)
+app = Flask(__name__, 
+            template_folder='templates',
+            static_folder='static')
+
 ctrl_lock = threading.Lock()
 git_lock = threading.Lock()
 os.makedirs(RECORDS_DIR, exist_ok=True)
 
-ph = PasswordHasher()
-
-def verify_password(input_pw: str) -> bool:
-    """Check the plaintext input against the Argon2id hash in .env."""
-    try:
-        ph.verify(IMMUDB_HASHED_PASSWORD, input_pw)
-        return True
-    except Exception:
-        return False
-
 def get_client():
-    """Ephemeral secure login — no plaintext password stored."""
-    print("\n=== ORP SOVEREIGNTY CHECKPOINT ===")
-    input_pw = getpass.getpass(f"Enter password for operator [{IMMUDB_USER}]: ")
+    """Direct Vault Authentication with Explicit Port Mapping."""
+    print("\n" + "="*40)
+    print("      ORP VAULT: DIRECT ACCESS        ")
+    print("="*40)
+    
+    # Ensure we are pulling the right host/port
+    host_raw = os.getenv("IMMUDB_HOST", "127.0.0.1:3322")
+    
+    # Split host and port to avoid gRPC defaulting to 443
+    if ":" in host_raw:
+        host, port = host_raw.split(":")
+        port = int(port)
+    else:
+        host = host_raw
+        port = 3322
 
-    # Step 1: Verify locally
-    if not verify_password(input_pw):
-        print("\n[!] CRITICAL: Invalid password — session aborted.")
-        exit(1)
+    input_pw = getpass.getpass(f"Enter password for vault user [{IMMUDB_USER}]: ")
 
-    # Step 2: Use the verified password directly for Immudb login
     try:
-        c = ImmudbClient(IMMUDB_HOST)
+        # Explicitly pass rs=False if you aren't using immudb's built-in TLS 
+        # (Since Nginx handles the TLS layer, the internal connection is plain gRPC)
+        c = ImmudbClient(f"{host}:{port}") 
         c.login(IMMUDB_USER, input_pw, database=IMMUDB_DB)
-        print("✅ Identity Verified. Immudb session established.")
+        
+        print(f"✅ Vault Unlocked. Connected to: {host}:{port}/{IMMUDB_DB}")
         return c
     except Exception as e:
-        print(f"\n[!] CONNECTION ERROR: {e}")
+        # If it still fails, let's see exactly what the client tried to do
+        print(f"\n[!] ACCESS DENIED. Target: {host}:{port}")
+        print(f"Error Details: {e}")
         exit(1)
 
-# Initialize Immudb client
 client = get_client()
 
 # --- 3. CRYPTO & DATA UTILITIES ---
@@ -188,7 +193,11 @@ def sync_to_github(json_path):
 # --- 4. ROUTES ---
 @app.route("/")
 def home():
-    return send_from_directory("templates", "portal.html")
+    return render_template("portal.html")
+
+@app.route("/cert_error.html")
+def cert_error():
+    return "<h1>Sovereign Identity Required</h1><p>Please present your operator certificate.</p>", 403
 
 @app.route('/lock_engine', methods=['POST'])
 def lock_engine():

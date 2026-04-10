@@ -3,43 +3,17 @@
 set -e
 
 # --- 1. Load Configuration ---
-#if [ -f .env ]; then
-#    export $(grep -v '^#' .env | xargs)
-#else
-#    echo "CRITICAL: .env file missing."
-#    exit 1
-#fi
-
-# NEW: Source the RAM-disk secrets for the database
-#if [ -f "$HOME/.identity/db_secrets.env" ]; then
-#    source "$HOME/.identity/db_secrets.env"
-#else
-#    echo "CRITICAL: RAM secrets not found at ~/.identity/db_secrets.env"
-#    exit 1
-#fi
-# --- 1. Load Configuration ---
 if [ -f .env ]; then
-    # Use set -a to export all variables defined in the file automatically
-    set -a
-    source .env
-    set +a
+    export $(grep -v '^#' .env | xargs)
 else
     echo "CRITICAL: .env file missing."
     exit 1
 fi
 
-# Source the RAM-disk secrets
-if [ -f "$HOME/.identity/db_secrets.env" ]; then
-    set -a
-    source "$HOME/.identity/db_secrets.env"
-    set +a
-else
-    echo "CRITICAL: RAM secrets not found at ~/.identity/db_secrets.env"
-    exit 1
-fi
 # --- 2. Setup Cleanup Trap ---
 cleanup() {
     echo -e "\n[!] Shutting down ORP Engine..."
+    # Use || true to prevent the trap itself from failing
     [ -n "$IMMUDB_PID" ] && kill "$IMMUDB_PID" 2>/dev/null || true
     if [ -n "$GNUPGHOME" ]; then
         echo "[*] Wiping ephemeral RAM directory..."
@@ -51,37 +25,26 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# --- 3. Create Ephemeral RAM Disk (GPG) ---
+# --- 3. Create Ephemeral RAM Disk ---
 export GNUPGHOME=$(mktemp -d -p /dev/shm .orp-gpg-XXXXXX)
 chmod 700 "$GNUPGHOME"
+
 echo "enable-ssh-support" > "$GNUPGHOME/gpg-agent.conf"
 echo "default-cache-ttl 86400" >> "$GNUPGHOME/gpg-agent.conf"
 export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
-echo "allow-loopback-pinentry" >> "$GNUPGHOME/gpg-agent.conf"
-gpg-connect-agent reloadagent /bye
 
-# --- 4. Hardened Database Startup ---
-# --- 4. Hardened Database Connection/Startup ---
-echo "[*] Checking for existing immudb Vault on 3322..."
+# --- 4. JIT Database Startup ---
+echo "[*] Starting immudb..."
+immudb --dir "$IMMUDB_DATA_DIR" > /dev/null 2>&1 &
+IMMUDB_PID=$!
 
-if nc -z 127.0.0.1 3322; then
-    echo "[!] Vault already running. Connecting to existing instance."
-    # Grab the PID of the existing immudb to ensure our cleanup trap works
-    IMMUDB_PID=$(pgrep -f "immudb.*3322")
-else
-    echo "[*] No vault detected. Starting fresh hardened instance..."
-    ~/bin/immudb \
-      --dir "$HOME/.orp_vault/data" \
-      --address 127.0.0.1 \
-      --port 3322 \
-      --pidfile "$HOME/.orp_vault/immudb.pid" \
-      --auth=true \
-      --maintenance=false > "$HOME/.orp_vault/immudb.log" 2>&1 &
-    IMMUDB_PID=$!
-    
-    # Wait for it to initialize
-    sleep 2
-fi
+echo "[*] Waiting for immudb (Port 3322)..."
+for i in {1..10}; do
+    if nc -z localhost 3322; then break; fi
+    if [ $i -eq 10 ]; then echo "immudb failed to start"; exit 1; fi
+    sleep 1
+done
+
 # --- 5. Key Generation ---
 echo "[*] Generating ED25519 identity for $OPERATOR_GPG_EMAIL..."
 cat > "$GNUPGHOME/gpg-gen-spec" <<EOF
@@ -97,13 +60,16 @@ EOF
 
 gpg --batch --generate-key "$GNUPGHOME/gpg-gen-spec" > /dev/null 2>&1
 
-# --- 6. Bridge to SSH ---
+# --- 6. Bridge to SSH (With error handling) ---
+# We wait a split second for the agent to register the key
 sleep 1
 KEYGRIP=$(gpg --with-keygrip -K "$OPERATOR_GPG_EMAIL" | grep "Keygrip" | head -n 1 | awk '{print $3}')
+
 if [ -z "$KEYGRIP" ]; then
     echo "CRITICAL: Could not find Keygrip for generated key."
     exit 1
 fi
+
 echo "$KEYGRIP 0" > "$GNUPGHOME/sshcontrol"
 gpg-connect-agent updatestartuptty /bye > /dev/null 2>&1
 
@@ -145,9 +111,7 @@ echo "======================================================"
 read -p "Press [ENTER] after pasting to start Flask... " confirm
 
 # --- 10. Launch ---
-# Corrected the venv path to .venv
-export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
-export GNUPGHOME="$GNUPGHOME"
-
-echo "[*] Launching ORP Engine Engine..."
-./.venv/bin/python3 main.py
+# Make sure we use the venv python if applicable
+#/home/orp/bin/immudb &
+/home/orp/bin/immudb --dir "$IMMUDB_DATA_DIR" > /dev/null 2>&1 &
+./venv/bin/python3 main.py
