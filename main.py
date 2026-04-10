@@ -17,9 +17,24 @@ import signal
 load_dotenv()
 
 # --- 1. CONFIGURATION & FAIL-FAST SECURITY ---
+# --- 1. CONFIGURATION & FAIL-FAST SECURITY ---
 GPG_HOME = os.getenv("GNUPGHOME")
 GPG_EMAIL = os.getenv("OPERATOR_GPG_EMAIL")
+SSH_AUTH_SOCK = os.getenv("SSH_AUTH_SOCK") # The new heartbeat
 
+# SECURITY HALT: The "Triple Check"
+if not all([GPG_HOME, GPG_EMAIL, SSH_AUTH_SOCK]):
+    print("\n" + "!"*50)
+    print(" CRITICAL SECURITY FAILURE: ENVIRONMENT INCOMPLETE")
+    print(" - GPG_HOME: ", "✅" if GPG_HOME else "❌ MISSING")
+    print(" - GPG_EMAIL:", "✅" if GPG_EMAIL else "❌ MISSING")
+    print(" - SSH_SOCK: ", "✅" if SSH_AUTH_SOCK else "❌ MISSING")
+    print("!"*50)
+    raise RuntimeError("Engine must be launched via _orp_core.sh sequence.")
+
+# Verify GPG_HOME is actually in RAM (/dev/shm)
+if not GPG_HOME.startswith("/dev/shm/"):
+    raise RuntimeError("VULNERABILITY DETECTED: GPG Home must reside in RAM disk (/dev/shm).")
 if not GPG_HOME or not GPG_EMAIL:
     raise RuntimeError("SECURITY HALT: GNUPGHOME or OPERATOR_GPG_EMAIL is missing. Ephemeral RAM environment not detected!")
 
@@ -86,6 +101,19 @@ def get_client():
 
 client = get_client()
 
+def gracefull_shutdown(signum, frame):
+    print("\n[!] EMERGENCY SCRAM: Purging Session...")
+    # Add any specific internal cleanup here (e.g., closing immudb client)
+    try:
+        client.logout()
+    except:
+        pass
+    os._exit(0) # Forced exit to ensure the shell trap catches it
+
+# Register the signals
+signal.signal(signal.SIGINT, gracefull_shutdown)
+signal.signal(signal.SIGTERM, gracefull_shutdown)
+
 # --- 3. CRYPTO & DATA UTILITIES ---
 def sign_json_data(record_dict):
     """Signs the JSON payload securely using the passwordless ephemeral key."""
@@ -148,7 +176,7 @@ def add_footer(original_pdf, sha256_hash, signature, qr_buf, timestamp, control_
     out = io.BytesIO(); writer.write(out); out.seek(0)
     return out
 
-def update_manifest(new_record):
+def update_manifest(record):
     manifest_path = os.path.join(RECORDS_DIR, "manifest.json")
     records = []
     if os.path.exists(manifest_path):
@@ -157,37 +185,36 @@ def update_manifest(new_record):
                 records = json.load(f)
         except Exception:
             records = []
-    records.append(new_record)
-    if len(records) > 1000: records = records[-1000:]
+    
+    records.insert(0, record) # Newest first
+    if len(records) > 1000:
+        records = records[:1000]
+        
     with open(manifest_path, "w") as f:
         json.dump(records, f, indent=4)
 
-def sync_to_github(json_path):
+def sync_to_github(json_path, record):
     with git_lock:
-        repo_path = REPO_PATH  
-        anchor_hash = os.path.basename(json_path).replace(".json", "") 
+        update_manifest(record)
         
-        # Point Git to the ephemeral session key in RAM
-        ssh_key_path = "/dev/shm/orp_identity/session.key"
+        repo_path = REPO_PATH
+        anchor_hash = os.path.basename(json_path).replace(".json", "")
+        
         git_env = os.environ.copy()
-        git_env["GIT_SSH_COMMAND"] = f"ssh -i {ssh_key_path} -o StrictHostKeyChecking=no"
-        
-        try: 
-            # 1. Add changes
-            subprocess.run(['git', '-C', repo_path, 'add', '.'], check=True, env=git_env) 
-            
-            # 2. Commit (Allowing failure if there's nothing new to commit)
-            subprocess.run(['git', '-C', repo_path, 'commit', '-m', f"Audit: Anchor {anchor_hash}"], check=False, env=git_env) 
-            
-            # 3. Fetch and Rebase to stay in sync with the Public Ledger
-            subprocess.run(['git', '-C', repo_path, 'fetch', 'origin'], check=True, env=git_env) 
-            subprocess.run(['git', '-C', repo_path, 'pull', '--rebase', '-X', 'ours', 'origin', 'main'], check=True, env=git_env) 
-            
-            # 4. Push using the ephemeral identity
-            subprocess.run(['git', '-C', repo_path, 'push', 'origin', 'main'], check=True, env=git_env) 
-            
-            print(f"✅ Ledger synchronized: {anchor_hash}") 
-        except subprocess.CalledProcessError as e: 
+        # The engine now trusts the shell's exported socket
+        git_env["SSH_AUTH_SOCK"] = SSH_AUTH_SOCK 
+        git_env["GIT_SSH_COMMAND"] = "ssh -o StrictHostKeyChecking=no"
+
+        try:
+            subprocess.run(['git', '-C', repo_path, 'add', '.'], check=True, env=git_env)
+            subprocess.run(['git', '-C', repo_path, 'commit', '-m', f"Audit: Anchor {anchor_hash}"], 
+                           check=False, env=git_env)
+            subprocess.run(['git', '-C', repo_path, 'fetch', 'origin'], check=True, env=git_env)
+            subprocess.run(['git', '-C', repo_path, 'pull', '--rebase', '-X', 'ours', 'origin', 'main'], 
+                           check=True, env=git_env)
+            subprocess.run(['git', '-C', repo_path, 'push', 'origin', 'main'], check=True, env=git_env)
+            print(f"✅ TruthChain Synchronized: {anchor_hash}")
+        except subprocess.CalledProcessError as e:
             print(f"❌ [Git Sync Error] {e}")
 
 # --- 4. ROUTES ---
@@ -207,59 +234,6 @@ def lock_engine():
     os.kill(os.getpid(), signal.SIGINT)
     return "Engine Locked. RAM Disk Purged.", 200
 
-@app.route("/upload", methods=["POST"])
-def upload_pdf():
-    global client
-    file = request.files.get("document")
-    if not file or not file.filename.lower().endswith('.pdf'):
-        return "Only PDF files are accepted.", 400
-
-    doc_type = request.form.get("doc_type", "BARANGAY-CERT")
-    pdf_bytes = file.read()
-    sha256_hash = hashlib.sha256(pdf_bytes).hexdigest()
-
-    try:
-        tx = client.set(sha256_hash.encode(), b"VERIFIED_BY_ORP_ENGINE")
-    except Exception:
-        print("⚠️ [immudb] Session expired, reconnecting...")
-        client = get_client()
-        tx = client.set(sha256_hash.encode(), b"VERIFIED_BY_ORP_ENGINE")
-
-    local_tz = pytz.timezone(TZ_NAME)
-    timestamp_ph = datetime.datetime.now(local_tz).strftime("%Y-%m-%d %I:%M %p PHT")
-    control_no = next_control_number()
-    final_ctrl = f"Verified_{control_no}-{doc_type}"
-    verification_url = f"{GITHUB_PORTAL}?hash={sha256_hash}"
-
-    qr_buf, _ = generate_qr(sha256_hash)
-    stamped_pdf_buf = add_footer(pdf_bytes, sha256_hash, "ORP-IMMUTABLE-SIG", qr_buf, timestamp_ph, final_ctrl)
-
-    record = {
-        "status": "VERIFIED ✅",
-        "signer": SIGNER_NAME,
-        "position": f"{SIGNER_POS}, {LGU_NAME}",
-        "document_type": doc_type,
-        "control_number": final_ctrl,
-        "sha256_hash": sha256_hash,
-        "timestamp": timestamp_ph,
-        "immudb_transaction_id": tx.id,
-        "verification_url": verification_url
-    }
-    
-    # Passwordless Data Signature
-    pgp_signature = sign_json_data(record)
-    if pgp_signature:
-        record["data_signature"] = pgp_signature
-
-    json_path = os.path.join(RECORDS_DIR, f"{sha256_hash}.json")
-    with open(json_path, "w") as f:
-        json.dump(record, f, indent=4)
-        
-    update_manifest(record)
-    threading.Thread(target=sync_to_github, args=(json_path,)).start()
-    
-    return send_file(stamped_pdf_buf, as_attachment=True, download_name=f"{final_ctrl}.pdf")
-
 @app.route('/ingest', methods=['POST'])
 def sovereign_ingest():
     global client
@@ -268,21 +242,30 @@ def sovereign_ingest():
         payload = json.loads(data['payload'].strip())
         subject = payload.get('subject', {})
 
-        raw_str = f"{subject.get('PCN', '')}{subject.get('lName', '')}{subject.get('fName', '')}"
+        # 1. GENERATE CONTROL DATA FIRST
+        control_no = next_control_number()
+        doc_type = data.get('purpose', 'BARANGAY-CERT')
+        final_ctrl = f"Verified_{control_no}-{doc_type}"
+
+        # 2. GENERATE PHILID INTEGRITY HASH (Audit Fingerprint)
+        # We use final_ctrl to ensure this hash is unique to this specific issuance
+        raw_str = f"{subject.get('PCN', '')}{subject.get('lName', '')}{subject.get('fName', '')}{final_ctrl}"
         integrity_hash = hashlib.sha256(raw_str.encode()).hexdigest().upper()
 
+        # 3. RENDER THE DOCUMENT
         doc = DocxTemplate(TEMPLATE_PATH)
         context = {
             'fName':     subject.get('fName'),
             'lName':     subject.get('lName'),
-            'PCN':       subject.get('PCN'),
+            'PCN':        subject.get('PCN'),
             'Hash':      integrity_hash,
             'Day':       datetime.datetime.now().strftime("%d"),
             'MonthYear': datetime.datetime.now().strftime("%B %Y").upper(),
-            'Purpose':   data.get('purpose', 'BARANGAY-CERT'),
+            'Purpose':   doc_type,
         }
         doc.render(context)
 
+        # 4. CONVERT TO PDF (Headless LibreOffice)
         temp_docx = f"/tmp/tmp_{integrity_hash[:8]}.docx"
         doc.save(temp_docx)
         subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', '/tmp', temp_docx], check=True)
@@ -291,27 +274,22 @@ def sovereign_ingest():
         with open(pdf_path, 'rb') as f:
             pdf_bytes = f.read()
 
-        os.remove(temp_docx)
-        os.remove(pdf_path)
+        # Cleanup temp files immediately after reading
+        if os.path.exists(temp_docx): os.remove(temp_docx)
+        if os.path.exists(pdf_path): os.remove(pdf_path)
 
+        # 5. GENERATE DOCUMENT HASH & IMMUDB ANCHOR
         sha256_hash = hashlib.sha256(pdf_bytes).hexdigest()
-
         try:
             tx = client.set(sha256_hash.encode(), b"VERIFIED_BY_ORP_ENGINE")
         except Exception:
-            client = get_client()
+            client = get_client() # Reconnect on session timeout
             tx = client.set(sha256_hash.encode(), b"VERIFIED_BY_ORP_ENGINE")
 
+        # 6. ASSEMBLE FINAL RECORD & PGP SIGN
         local_tz = pytz.timezone(TZ_NAME)
         timestamp_ph = datetime.datetime.now(local_tz).strftime("%Y-%m-%d %I:%M %p PHT")
-        control_no = next_control_number()
-        doc_type = data.get('purpose', 'BARANGAY-CERT')
-        final_ctrl = f"Verified_{control_no}-{doc_type}"
-        verification_url = f"{GITHUB_PORTAL}?hash={sha256_hash}"
-
-        qr_buf, _ = generate_qr(sha256_hash)
-        stamped_pdf_buf = add_footer(pdf_bytes, sha256_hash, "ORP-IMMUTABLE-SIG", qr_buf, timestamp_ph, final_ctrl)
-
+        
         record = {
             "status": "VERIFIED ✅",
             "document_type": doc_type,
@@ -327,12 +305,16 @@ def sovereign_ingest():
         if pgp_signature:
             record["data_signature"] = pgp_signature
 
+        # 7. SAVE LOCALLY & SYNC TO GITHUB
         json_path = os.path.join(RECORDS_DIR, f"{sha256_hash}.json")
         with open(json_path, 'w') as f:
             json.dump(record, f, indent=4)
-            
-        update_manifest(record)
-        threading.Thread(target=sync_to_github, args=(json_path,)).start()
+
+        threading.Thread(target=sync_to_github, args=(json_path, record)).start()
+
+        # 8. ADD SECURITY FOOTER & SEND TO USER
+        qr_buf, _ = generate_qr(sha256_hash)
+        stamped_pdf_buf = add_footer(pdf_bytes, sha256_hash, "ORP-IMMUTABLE-SIG", qr_buf, timestamp_ph, final_ctrl)
 
         return send_file(stamped_pdf_buf, as_attachment=True, download_name=f"{final_ctrl}.pdf")
 

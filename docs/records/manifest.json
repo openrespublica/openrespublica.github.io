@@ -1,6 +1,21 @@
 [
     {
         "status": "VERIFIED \u2705",
+        "document_type": "BARANGAY-CERT",
+        "control_number": "Verified_2026-0029-BARANGAY-CERT",
+        "sha256_hash": "4451deab1a5155f56b20bec2455a3760cda66a0b3cf2b8adee383904f9c754e4",
+        "timestamp": "2026-04-11 03:56 AM PHT",
+        "immudb_transaction_id": 3,
+        "philid_pcn": "1234-5678-9012-3456",
+        "philid_hash": "81055109ECBBD23787E3C3167432F9B3EC92371CC94C759BE77C772CE2C9D645",
+        "data_signature": {
+            "gpg_signature": "-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\n{\"control_number\": \"Verified_2026-0029-BARANGAY-CERT\", \"document_type\": \"BARANGAY-CERT\", \"immudb_transaction_id\": 3, \"philid_hash\": \"81055109ECBBD23787E3C3167432F9B3EC92371CC94C759BE77C772CE2C9D645\", \"philid_pcn\": \"1234-5678-9012-3456\", \"sha256_hash\": \"4451deab1a5155f56b20bec2455a3760cda66a0b3cf2b8adee383904f9c754e4\", \"status\": \"VERIFIED \\u2705\", \"timestamp\": \"2026-04-11 03:56 AM PHT\"}\n-----BEGIN PGP SIGNATURE-----\n\niJMEARYKADsWIQRkB+nS/YxtAc/9srYj7y1tTNuk8QUCadlV5B0cbWFyY29mZXJu\nYW5kZXowMjA0QGdtYWlsLmNvbQAKCRAj7y1tTNuk8YycAP9eTqcy26U9PElEBO+8\n+q6WzDmiVUg2vw//Bob6Bi9A/QD/Wimslsntt48tX5EnmSx0HBTmiS07xaS66slD\nf56BTgY=\n=2ph2\n-----END PGP SIGNATURE-----\n",
+            "hash_anchor": "d5d608d6d894066c1d64b37a9b95ca76fd34401ff5338b44c5a85a2c1f39c983",
+            "integrity_scope": "EPHEMERAL_RAM_LEGAL_SIGNATURE"
+        }
+    },
+    {
+        "status": "VERIFIED \u2705",
         "signer": "Authorized",
         "position": "Barangay, Barangay",
         "document_type": "BARANGAY-CERT",
