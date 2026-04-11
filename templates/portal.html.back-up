@@ -21,7 +21,7 @@
                 <div class="status-dot"></div>
                 <span>Engine Online</span>
                 &nbsp;·&nbsp;
-                <button id="lockBtn" class="logout-link">🔒 Lock Engine</button>
+		<button id="lockBtn" class="logout-link">🔒 Lock Engine</button>
             </div>
         </div>
     </div>
@@ -58,7 +58,7 @@
         </aside>
 
         <div class="main-content">
-
+            
             <div class="panel" id="panel-dashboard">
                 <div class="panel-header">
                     <div class="panel-icon">📊</div>
@@ -68,33 +68,21 @@
                     </div>
                 </div>
                 <div class="panel-body">
-                    <div class="stats-row">
-                        <div class="stat-card">
-                            <div class="stat-value" id="dTotal">—</div>
-                            <div class="stat-label">Total Anchored</div>
-                        </div>
-                        <div class="stat-card stat-card--gold">
-                            <div class="stat-value" id="dLatest">—</div>
-                            <div class="stat-label">Last Issue</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value stat-value--green">✓</div>
-                            <div class="stat-label">immudb Status</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">2026</div>
-                            <div class="stat-label">Ledger Year</div>
-                        </div>
+                    <div class="stats-row" style="margin-bottom:1.25rem;">
+                        <div class="stat-card"><div class="stat-value" id="dTotal">—</div><div class="stat-label">Total Anchored</div></div>
+                        <div class="stat-card" style="border-top:3px solid var(--gold);"><div class="stat-value" style="color:#8a6a14;" id="dLatest">—</div><div class="stat-label">Last Issue</div></div>
+                        <div class="stat-card"><div class="stat-value" style="color:#1E7A3E;">✓</div><div class="stat-label">immudb Status</div></div>
+                        <div class="stat-card"><div class="stat-value">2026</div><div class="stat-label">Ledger Year</div></div>
                     </div>
 
-                    <div class="civic-section">
+                    <div class="civic-section" style="margin-bottom:0;">
                         <span class="civic-section-id">01 — System Status</span>
-                        <div class="civic-body">
+                        <div class="civic-body" style="max-width:100%;">
                             <p>The ORP Engine is operational. Documents submitted through the PDF Stamp or PhilID Ingest routes are automatically hashed, anchored to the local immudb instance, and published to the public ledger at <em>openrespublica.github.io</em> within 60 to 90 seconds of issuance.</p>
                         </div>
                     </div>
 
-                    <div class="alert-group">
+                    <div style="margin-top:1.25rem;">
                         <div class="alert alert-warning">🔒 This portal is restricted to authorized barangay operators only. All access and issuance actions are logged and anchored to the immutable ledger.</div>
                         <div class="alert alert-info">🔗 Public ledger syncs to <strong>openrespublica.github.io</strong> within 60–90 seconds. Records are cryptographically immutable once pushed.</div>
                     </div>
@@ -110,9 +98,9 @@
                     </div>
                 </div>
                 <div class="panel-body">
-                    <div class="civic-section">
+                    <div class="civic-section" style="margin-bottom:1.25rem;">
                         <span class="civic-section-id">01 — Upload</span>
-                        <div class="civic-body civic-body--sm">
+                        <div class="civic-body" style="max-width:100%;font-size:0.83rem;">
                             <p>Select a PDF document for cryptographic processing. The system will compute a SHA-256 fingerprint, anchor it to immudb, stamp the document with a QR code and control number, and publish the record to the public ledger automatically.</p>
                         </div>
                     </div>
@@ -124,7 +112,7 @@
                                 <input type="file" id="pdfFile" accept=".pdf" style="display:none">
                                 <div class="file-drop-icon">📄</div>
                                 <p><strong>Click to browse</strong> or drag &amp; drop</p>
-                                <p class="file-drop-hint">PDF files only &nbsp;·&nbsp; Max 20MB</p>
+                                <p style="margin-top:0.2rem;font-size:0.75rem;">PDF files only &nbsp;·&nbsp; Max 20MB</p>
                                 <span id="selectedFileName" class="file-name-badge" style="display:none;"></span>
                             </div>
                         </div>
@@ -165,9 +153,9 @@
                     </div>
                 </div>
                 <div class="panel-body">
-                    <div class="civic-section">
+                    <div class="civic-section" style="margin-bottom:1.25rem;">
                         <span class="civic-section-id">01 — Sovereign Pipeline</span>
-                        <div class="civic-body civic-body--sm">
+                        <div class="civic-body" style="max-width:100%;font-size:0.83rem;">
                             <p>Paste the JSON payload received from the PhilID mobile scan. The system will automatically populate the template, convert it to PDF, anchor it to immudb, and publish it to the public ledger.</p>
                         </div>
                     </div>

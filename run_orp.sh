@@ -12,6 +12,7 @@ orp_load_env
 orp_forge_identity
 orp_start_vault
 orp_configure_git
+orp_refresh_gateway
 
 clear
 cat <<EOF
@@ -33,8 +34,9 @@ $(cat "$ORP_IDENTITY_DIR/session.gpg")
 
 ======================================================
 [!] ACTION: Paste the SSH key to GitHub Settings now.
+[!] Then press ENTER to start the Flask engine.
 ======================================================
 EOF
 
-read -rp "Press [ENTER] after pasting to start Flask... "
+read -rp "Press [ENTER] after pasting keys to GitHub... "
 orp_launch_engine
