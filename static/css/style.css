@@ -1,318 +1,433 @@
-// static/js/portal.js
+/* ============================================================
+   OpenResPublica TruthChain — Civic Document Design System
+   Barangay Buñao, Dumaguete City
+   ============================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
-    initNavigation();
-    initLockButton();
-    initFileDrop();
-    initUploadForm();
-    initIngestForm();
-    initLedgerPagination();
-    loadDashboard();
-});
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;600&family=Source+Sans+3:wght@300;400;500;600&display=swap');
 
-// ── NAVIGATION ──
-function initNavigation() {
-    document.querySelectorAll('.nav-item[data-target]').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const target = e.currentTarget.getAttribute('data-target');
+/* ── ROOT TOKENS ── */
+:root {
+    --navy:       #002147;
+    --navy-deep:  #001530;
+    --navy-mid:   #003366;
+    --navy-light: #0a4a8a;
+    --gold:       #C9A84C;
+    --gold-pale:  #FDF3D0;
+    --white:      #FAFAF7;
+    --ink:        #1A1A2E;
+    --muted:      #6B7280;
+    --border:     rgba(0,33,71,0.1);
 
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            e.currentTarget.classList.add('active');
+    --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --font-sans:  'Source Sans 3', system-ui, sans-serif;
+    --font-mono:  'IBM Plex Mono', 'Courier New', monospace;
 
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            document.getElementById('panel-' + target).classList.add('active');
-
-            if (target === 'ledger')    loadLedger();
-            if (target === 'dashboard') loadDashboard();
-        });
-    });
+    --line-height-body:   1.85;
+    --line-height-tight:  1.35;
+    --text-indent:        2.5em;
 }
 
-// ── LOCK BUTTON ──
-function initLockButton() {
-    document.getElementById('lockBtn')?.addEventListener('click', async () => {
-        if (!confirm('Shut down engine and purge RAM disk?')) return;
-        try {
-            await fetch('/lock_engine', { method: 'POST' });
-        } catch {
-            // Expected: the server fires SIGINT after returning 200, so a connection
-            // reset is normal. We still proceed to show the locked screen.
-        }
-        document.body.innerHTML = `
-            <div style="text-align:center;padding:5rem;font-family:sans-serif;">
-                <h1 style="font-size:2rem;">🏛️ Engine Locked</h1>
-                <p style="color:#6B7280;">RAM disk purged. Session closed securely.</p>
-            </div>`;
-    });
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: var(--white);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: var(--line-height-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
-// ── FILE DROP UX ──
-function initFileDrop() {
-    const dropZone  = document.getElementById('dropZone');
-    const fileInput = document.getElementById('pdfFile');
-    if (!dropZone || !fileInput) return;
-
-    dropZone.addEventListener('click', () => fileInput.click());
-
-    dropZone.addEventListener('dragover', e => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
-
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-
-    dropZone.addEventListener('drop', e => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (file?.name.toLowerCase().endsWith('.pdf')) {
-            fileInput.files = e.dataTransfer.files;
-            updateFileDisplay(fileInput);
-        }
-    });
-
-    fileInput.addEventListener('change', () => updateFileDisplay(fileInput));
+/* ── HEADER — PHILIPPINE OFFICIAL DOCUMENT STYLE ── */
+.site-header {
+    background: var(--navy-deep);
+    border-bottom: 3px solid var(--gold);
+    position: relative;
+    overflow: hidden;
 }
 
-function updateFileDisplay(input) {
-    const file = input.files[0];
-    if (!file) return;
-    const el = document.getElementById('selectedFileName');
-    el.textContent  = `✓ ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    el.style.display = 'inline-block';
+.site-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(201,168,76,0.04) 40px, rgba(201,168,76,0.04) 41px),
+        repeating-linear-gradient(0deg,  transparent, transparent 40px, rgba(201,168,76,0.04) 40px, rgba(201,168,76,0.04) 41px);
+    pointer-events: none;
 }
 
-// ── UI HELPERS ──
-function setProgress(prefix, step, total) {
-    for (let i = 1; i <= total; i++) {
-        const el = document.getElementById(prefix + i);
-        if (!el) continue;
-        el.className = 'progress-step' +
-            (i < step ? ' done' : i === step ? ' active' : '');
-    }
-    const barId = prefix === 'us' ? 'uploadBar' : 'ingestBar';
-    const bar   = document.getElementById(barId);
-    if (bar) bar.style.width = `${Math.min(100, (step / total) * 100)}%`;
+.header-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 2rem;
+    text-align: center;
+    position: relative;
 }
 
-function showResult(id, ok, title, details, blob, filename) {
-    const el       = document.getElementById(id);
-    el.className   = 'result-box ' + (ok ? 'result-success' : 'result-error');
-    el.style.display = 'block';
-
-    let dHtml = '';
-    if (details && typeof details === 'object') {
-        dHtml = '<div class="result-kv">' +
-            Object.entries(details).map(([k, v]) =>
-                `<span class="result-key">${k}</span><span class="result-val">${v}</span>`
-            ).join('') +
-            '</div>';
-    } else if (details) {
-        dHtml = `<p style="margin-top:0.5rem;">${details}</p>`;
-    }
-
-    let dlHtml = '';
-    if (blob && filename) {
-        const url = URL.createObjectURL(blob);
-        dlHtml = `<a href="${url}" download="${filename}" class="download-btn">⬇ Download ${filename}</a>`;
-    }
-
-    el.innerHTML =
-        `<div class="result-header"><h4>${ok ? '✅' : '❌'} ${title}</h4></div>` +
-        `<div class="result-body">${dHtml}${dlHtml}</div>`;
+.republic-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.6rem;
 }
 
-// ── UPLOAD FORM ──
-function initUploadForm() {
-    document.getElementById('uploadForm')?.addEventListener('submit', async e => {
-        e.preventDefault();
-
-        const file    = document.getElementById('pdfFile').files[0];
-        const docType = document.getElementById('uploadDocType').value;
-        const btn     = document.getElementById('uploadBtn');
-
-        if (!file) { alert('Please select a PDF file.'); return; }
-
-        btn.disabled = true;
-        document.getElementById('uploadProgress').style.display = 'block';
-        document.getElementById('uploadResult').style.display   = 'none';
-
-        // Animate progress steps while the request is in-flight
-        [1, 2, 3].forEach((s, i) =>
-            setTimeout(() => setProgress('us', s, 4), i * 700 + 100)
-        );
-
-        const fd = new FormData();
-        fd.append('document', file);
-        fd.append('doc_type', docType);
-
-        try {
-            const res = await fetch('/upload', { method: 'POST', body: fd });
-            setProgress('us', 4, 4);
-
-            if (res.ok) {
-                const blob  = await res.blob();
-                const ctrl  = res.headers.get('Content-Disposition')
-                    ?.match(/filename="?([^"]+)"?/)?.[1] || `${docType}.pdf`;
-                showResult('uploadResult', true, 'Document Anchored to TruthChain',
-                    { 'File': file.name, 'Type': docType, 'Status': 'Anchored · Publishing to ledger...' },
-                    blob, ctrl);
-            } else {
-                showResult('uploadResult', false, 'Upload Failed', await res.text());
-            }
-        } catch (err) {
-            showResult('uploadResult', false, 'Connection Error', err.message);
-        } finally {
-            btn.disabled = false;
-            setTimeout(() => {
-                document.getElementById('uploadProgress').style.display = 'none';
-                setProgress('us', 0, 4);
-            }, 3500);
-        }
-    });
+.seal-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
 }
 
-// ── PHILID INGEST ──
-function initIngestForm() {
-    document.getElementById('loadSampleBtn')?.addEventListener('click', () => {
-        document.getElementById('philidPayload').value = JSON.stringify({
-            subject: {
-                fName: 'Juan', mName: 'dela', lName: 'Cruz', Suffix: '',
-                sex: 'Male', DOB: '1990-01-15', POB: 'Dumaguete City, Negros Oriental',
-                PCN: '1234-5678-9012-3456',
-            },
-            alg: 'ES256', signature: 'SAMPLE-PSA-SIG-ABCDEF123456',
-        }, null, 2);
-    });
-
-    document.getElementById('ingestForm')?.addEventListener('submit', async e => {
-        e.preventDefault();
-
-        const raw = document.getElementById('philidPayload').value.trim();
-        if (!raw) { alert('Please paste a PhilID JSON payload.'); return; }
-
-        let parsed;
-        try { parsed = JSON.parse(raw); } catch { alert('Invalid JSON.'); return; }
-
-        const btn = document.getElementById('ingestBtn');
-        btn.disabled = true;
-        document.getElementById('ingestProgress').style.display = 'block';
-        document.getElementById('ingestResult').style.display   = 'none';
-
-        [1, 2, 3, 4].forEach((s, i) =>
-            setTimeout(() => setProgress('is', s, 5), [100, 700, 2200, 4000][i])
-        );
-
-        try {
-            const res = await fetch('/ingest', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    payload: JSON.stringify(parsed),
-                    purok:   document.getElementById('ingestPurok').value,
-                    purpose: document.getElementById('ingestPurpose').value,
-                }),
-            });
-
-            setProgress('is', 5, 5);
-
-            if (res.ok) {
-                const blob = await res.blob();
-                const ctrl = res.headers.get('Content-Disposition')
-                    ?.match(/filename="?([^"]+)"?/)?.[1] || 'certificate.pdf';
-                const s = parsed.subject || {};
-                showResult('ingestResult', true, 'Certificate Generated & Anchored',
-                    {
-                        'Name':   `${s.fName || ''} ${s.mName || ''} ${s.lName || ''}`.trim(),
-                        'PCN':    s.PCN || '—',
-                        'Status': 'Anchored · Publishing to ledger...',
-                    },
-                    blob, ctrl);
-            } else {
-                const d = await res.json().catch(() => ({ message: 'Unknown error' }));
-                showResult('ingestResult', false, 'Ingest Failed', d.message);
-            }
-        } catch (err) {
-            showResult('ingestResult', false, 'Connection Error', err.message);
-        } finally {
-            btn.disabled = false;
-            setTimeout(() => {
-                document.getElementById('ingestProgress').style.display = 'none';
-                setProgress('is', 0, 5);
-            }, 4000);
-        }
-    });
+.seal-ornament {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--gold), transparent);
+    max-width: 120px;
 }
 
-// ── LEDGER ──
-let lData = [], lPage = 1;
-const LP = 15;
-
-async function loadLedger() {
-    document.getElementById('ledgerBody').innerHTML =
-        '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--muted);">' +
-        '<div class="spinner" style="margin:0 auto 0.5rem;"></div>Loading...</td></tr>';
-    try {
-        const res = await fetch(
-            'https://openrespublica.github.io/records/manifest.json?t=' + Date.now()
-        );
-        if (!res.ok) throw new Error('Manifest unavailable');
-        lData  = (await res.json()).reverse();  // newest first
-        lPage  = 1;
-        renderLedgerTable();
-    } catch {
-        document.getElementById('ledgerBody').innerHTML =
-            '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--muted);">' +
-            'Could not load manifest.</td></tr>';
-    }
+.seal-diamond {
+    width: 10px; height: 10px;
+    background: var(--gold);
+    transform: rotate(45deg);
+    flex-shrink: 0;
 }
 
-function renderLedgerTable() {
-    const total = lData.length;
-    const start = (lPage - 1) * LP;
-    const end   = Math.min(start + LP, total);
-    const slice = lData.slice(start, end);
-
-    document.getElementById('ledgerBody').innerHTML = slice.map(r => `
-        <tr>
-            <td><strong style="font-size:0.78rem;color:var(--navy-mid);">${r.control_number || '—'}</strong></td>
-            <td><span class="badge-type">${r.document_type || 'GENERAL'}</span></td>
-            <td style="font-size:0.75rem;color:var(--muted);">${r.timestamp || '—'}</td>
-            <td><span class="mono">${(r.sha256_hash || '').substring(0, 14)}…</span></td>
-            <td><span class="mono">#${r.immudb_transaction_id || '—'}</span></td>
-            <td style="text-align:center;">
-                <a href="https://openrespublica.github.io/index.html?hash=${r.sha256_hash}"
-                   target="_blank" class="btn-outline">Verify</a>
-            </td>
-        </tr>`).join('');
-
-    document.getElementById('ledgerCount').textContent =
-        `Showing ${start + 1}–${end} of ${total} records`;
-    document.getElementById('lPrev').disabled = lPage === 1;
-    document.getElementById('lNext').disabled = end >= total;
+.site-header h1 {
+    font-family: var(--font-serif);
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 700;
+    color: var(--white);
+    line-height: var(--line-height-tight);
+    margin-bottom: 0.4rem;
 }
 
-function initLedgerPagination() {
-    document.getElementById('lPrev')?.addEventListener('click', () => {
-        lPage = Math.max(1, lPage - 1);
-        renderLedgerTable();
-    });
-    document.getElementById('lNext')?.addEventListener('click', () => {
-        lPage = Math.min(lPage + 1, Math.ceil(lData.length / LP));
-        renderLedgerTable();
-    });
+.site-header .subtitle {
+    font-size: 0.82rem;
+    color: rgba(201,168,76,0.85);
+    letter-spacing: 0.06em;
 }
 
-// ── DASHBOARD ──
-async function loadDashboard() {
-    try {
-        const res = await fetch(
-            'https://openrespublica.github.io/records/manifest.json?t=' + Date.now()
-        );
-        if (!res.ok) return;
-        const data = await res.json();  // already newest-first
-        document.getElementById('dTotal').textContent  = data.length;
-        document.getElementById('dLatest').textContent =
-            (data[0]?.timestamp || '').split(' ')[0] || '—';
-    } catch { /* silently ignore dashboard fetch failures */ }
+/* ── CIVIC DOCUMENT TYPOGRAPHY ── */
+/*
+   Justified text with proper indentation — matching the
+   formatting standard of Philippine official documents
+   (IRR, ordinances, DICT/DILG issuances, PSA releases)
+   applied to civic technology content.
+*/
+
+.civic-body {
+    text-align: justify;
+    line-height: var(--line-height-body);
+    color: #2D3748;
+    font-size: 0.95rem;
+    max-width: 660px;
+    hyphens: auto;
+}
+
+.civic-body p {
+    text-indent: var(--text-indent);
+    margin-bottom: 0.9em;
+}
+
+.civic-body p.no-indent { text-indent: 0; }
+
+.civic-body p:last-child { margin-bottom: 0; }
+
+/* ── SECTION NUMBERING — CIVIC TECH STYLE ── */
+/*
+   01 — not "Section 117. Effectivity"
+   Authoritative but forward-looking.
+*/
+.civic-section {
+    margin-bottom: 2.5rem;
+}
+
+.civic-section-id {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+.civic-section-title {
+    font-family: var(--font-serif);
+    font-size: clamp(1.2rem, 2.5vw, 1.7rem);
+    color: var(--navy-mid);
+    line-height: var(--line-height-tight);
+    margin-bottom: 1rem;
+}
+
+/* ── RULED DIVIDER — LIKE OFFICIAL DOCUMENT SEPARATION ── */
+.civic-rule {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 2.5rem 0;
+}
+
+.civic-rule::before,
+.civic-rule::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.civic-rule-mark {
+    width: 6px; height: 6px;
+    background: var(--gold);
+    transform: rotate(45deg);
+    flex-shrink: 0;
+}
+
+/* ── CONTENT WRAP ── */
+.content-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 2.5rem 1.5rem;
+}
+
+/* ── CARDS ── */
+.card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 24px rgba(0,33,71,0.06);
+}
+
+/* ── STATUS CARDS ── */
+.status-card {
+    display: none;
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin-top: 1.5rem;
+    animation: slideUp 0.3s ease;
+}
+
+.status-card.verified { background: #F0FAF4; border: 1.5px solid #1E7A3E; color: #0F4D25; }
+.status-card.not-found { background: #FEF2F2; border: 1.5px solid #C62828; color: #7F1D1D; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── TABLE — OFFICIAL LEDGER STYLE ── */
+.table-wrap {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,33,71,0.06);
+}
+
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+thead { background: var(--navy-deep); }
+
+thead th {
+    font-family: var(--font-sans);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(201,168,76,0.9);
+    padding: 0.85rem 1rem;
+    text-align: left;
+}
+
+tbody tr {
+    border-bottom: 1px solid rgba(0,33,71,0.07);
+    transition: background 0.15s;
+}
+
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(0,33,71,0.03); }
+
+tbody td {
+    padding: 0.85rem 1rem;
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+/* ── BADGES ── */
+.badge-type {
+    display: inline-block;
+    background: rgba(0,33,71,0.07);
+    color: var(--navy-mid);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+/* ── MONO ── */
+.mono {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    word-break: break-all;
+    background: rgba(0,0,0,0.05);
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+mark {
+    background: var(--gold-pale);
+    color: var(--navy-deep);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+}
+
+/* ── INPUTS ── */
+.input-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+.hash-input {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid rgba(0,33,71,0.18);
+    border-radius: 8px;
+    color: var(--ink);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 0;
+}
+
+.hash-input::placeholder { color: #aab; }
+.hash-input:focus { border-color: var(--navy-mid); }
+
+/* ── BUTTONS ── */
+.btn-primary {
+    padding: 0.75rem 1.5rem;
+    background: var(--navy-mid);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-primary:hover { background: var(--navy); }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-outline {
+    display: inline-block;
+    padding: 0.45rem 1rem;
+    border: 1px solid rgba(0,51,102,0.25);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--navy-mid);
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.btn-outline:hover { background: var(--navy-mid); color: #fff; }
+
+/* ── FOOTER NAV ── */
+.footer-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.25rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1.5rem;
+    margin-top: 2rem;
+}
+
+.footer-nav a {
+    font-size: 0.82rem;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.footer-nav a:hover { background: rgba(0,33,71,0.06); color: var(--navy-mid); }
+.footer-nav a.active { color: var(--navy-mid); font-weight: 600; background: rgba(0,33,71,0.06); }
+
+/* ── SITE FOOTER ── */
+.site-footer {
+    text-align: center;
+    padding: 1.25rem 1.5rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    border-top: 1px solid rgba(0,0,0,0.07);
+    line-height: 1.6;
+}
+
+.site-footer strong { color: var(--navy-mid); }
+
+/* ── LOADING SPINNER ── */
+.spinner {
+    width: 34px; height: 34px;
+    border: 2.5px solid rgba(0,51,102,0.12);
+    border-top-color: var(--navy-mid);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── STAT CARDS ── */
+.stat-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+}
+
+.stat-value {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--navy-mid);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 0.3rem;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 640px) {
+    .input-row { flex-direction: column; }
+    .civic-body { font-size: 0.9rem; }
+    .site-header h1 { font-size: 1.5rem; }
 }
