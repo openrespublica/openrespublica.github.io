@@ -3,59 +3,25 @@
 # Source this file; do not execute directly.
 
 # ── 1. Environment ───────────────────────────────────────────────
-
-#orp_load_env() {
+orp_load_env() {
     # Resolve the repo root relative to THIS file, not CWD.
     # This makes it safe to launch the engine from any working directory.
-#    local core_dir
-#    core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-#    if [ -f "$core_dir/.env" ]; then
-#        set -a; source "$core_dir/.env"; set +a
-#    else
-#        orp_die "CRITICAL: .env file missing. Expected: $core_dir/.env"
-#    fi
-
-#    if [ -f "$HOME/.identity/db_secrets.env" ]; then
-#        set -a; source "$HOME/.identity/db_secrets.env"; set +a
-#    else
-#        orp_die "CRITICAL: RAM secrets not found at ~/.identity/db_secrets.env"
-#    fi
-#}
-orp_load_env() {
     local core_dir
     core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # ── Self-Healing Identity Anchor ──
-    local id_dir="$HOME/.identity"
-    local secrets_file="$id_dir/db_secrets.env"
 
-    if [ ! -d "$id_dir" ] || [ ! -f "$secrets_file" ]; then
-        echo " [!] Identity Anchor missing. Rebuilding..."
-        mkdir -p "$id_dir"
-        chmod 700 "$id_dir"
-        
-        # We ask interactively so the password never hits your bash history
-        read -rsp " [?] Enter password for immudb [orp_operator]: " vault_pass
-        echo ""
-        
-        cat <<EOF > "$secrets_file"
-# immudb credentials — Local Anchor
-export IMMUDB_PASSWORD="$vault_pass"
-EOF
-        chmod 600 "$secrets_file"
-        echo " [✔] Identity Anchor restored at $id_dir"
-    fi
-
-    # ── Load Files ──
     if [ -f "$core_dir/.env" ]; then
         set -a; source "$core_dir/.env"; set +a
     else
-        orp_die "CRITICAL: .env file missing."
+        orp_die "CRITICAL: .env file missing. Expected: $core_dir/.env"
     fi
 
-    set -a; source "$secrets_file"; set +a
+    if [ -f "$HOME/.identity/db_secrets.env" ]; then
+        set -a; source "$HOME/.identity/db_secrets.env"; set +a
+    else
+        orp_die "CRITICAL: RAM secrets not found at ~/.identity/db_secrets.env"
+    fi
 }
+
 orp_die() {
     printf '\nERROR: %s\n' "$*" >&2
     exit 1
@@ -173,30 +139,6 @@ orp_configure_git() {
     git config --local commit.gpgsign   true
 }
 
-orp_refresh_gateway() {
-    printf '[*] Verifying Nginx mTLS Gateway...\n'
-    
-    # Check syntax first
-    if ! sudo nginx -t > /dev/null 2>&1; then
-        sudo nginx -t # Show the actual error
-        orp_die "Nginx config is broken."
-    fi
-
-    # If it's not running, start it. If it is, reload it.
-    if ! systemctl is-active --quiet nginx; then
-        printf '[*] Gateway is cold. Starting Nginx...\n'
-        sudo systemctl start nginx
-    else
-        printf '[*] Gateway is hot. Reloading mTLS config...\n'
-        sudo systemctl reload nginx
-    fi
-
-    # Final health check
-    if ! systemctl is-active --quiet nginx; then
-        orp_die "Gateway failed to ignite."
-    fi
-}
-
 # ── 6. Engine launch ─────────────────────────────────────────────
 orp_launch_engine() {
     # Re-derive the agent socket in case it drifted after a gpg-agent restart.
@@ -208,4 +150,17 @@ orp_launch_engine() {
     # exec replaces the shell so the cleanup trap fires only on Python exit,
     # not on a normal shell exit beforehand.
     exec ./.venv/bin/python3 main.py
+}
+
+# ── 7. Network Gateway (Nginx) ───────────────────────────────────
+orp_refresh_gateway() {
+    printf '[*] Verifying Nginx mTLS Gateway configuration...\n'
+    if sudo nginx -t > /dev/null 2>&1; then
+        printf '[*] Reloading Nginx to apply mTLS headers...\n'
+        sudo nginx
+    else
+        # Print the actual error so the operator knows what to fix.
+        sudo nginx -t >&2
+        orp_die "Nginx configuration test failed! Check /etc/nginx/conf.d/orp_engine.conf"
+    fi
 }

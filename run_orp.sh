@@ -38,5 +38,12 @@ $(cat "$ORP_IDENTITY_DIR/session.gpg")
 ======================================================
 EOF
 
+# Copy keys to clipboard AFTER printing them
+cat "$ORP_IDENTITY_DIR/session.pub" | termux-clipboard-set
+termux-toast "SSH public key copied to clipboard"
+
+cat "$ORP_IDENTITY_DIR/session.gpg" | termux-clipboard-set
+termux-toast "GPG public key copied to clipboard"
+
 read -rp "Press [ENTER] after pasting keys to GitHub... "
 orp_launch_engine
