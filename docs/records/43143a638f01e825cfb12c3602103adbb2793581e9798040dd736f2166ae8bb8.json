@@ -1,0 +1,15 @@
+{
+    "status": "VERIFIED \u2705",
+    "document_type": "RESIDENCY-CERT",
+    "control_number": "Verified_2026-0036-RESIDENCY-CERT",
+    "sha256_hash": "43143a638f01e825cfb12c3602103adbb2793581e9798040dd736f2166ae8bb8",
+    "timestamp": "2026-04-15 01:14 AM PHT",
+    "immudb_transaction_id": 6,
+    "philid_pcn": "1234-5678-9012-3456",
+    "philid_hash": "832CAAB07FE6F8BE16BB1070325396F7F96BCD2385CE364D6F6F9F4F2E6C90AE",
+    "data_signature": {
+        "gpg_signature": "-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\n{\"control_number\": \"Verified_2026-0036-RESIDENCY-CERT\", \"document_type\": \"RESIDENCY-CERT\", \"immudb_transaction_id\": 6, \"philid_hash\": \"832CAAB07FE6F8BE16BB1070325396F7F96BCD2385CE364D6F6F9F4F2E6C90AE\", \"philid_pcn\": \"1234-5678-9012-3456\", \"sha256_hash\": \"43143a638f01e825cfb12c3602103adbb2793581e9798040dd736f2166ae8bb8\", \"status\": \"VERIFIED \\u2705\", \"timestamp\": \"2026-04-15 01:14 AM PHT\"}\n-----BEGIN PGP SIGNATURE-----\n\niJMEARYKADsWIQSj8u4vkSIY9BcwUDTYdm/VRAtiRgUCad518h0cbWFyY29mZXJu\nYW5kZXowMjA0QGdtYWlsLmNvbQAKCRDYdm/VRAtiRl0GAP9ihvdLoQXd6IqvODar\nK65G/DMht+gIiUBqIr1uGQDn9wEA5c2bx0RcnRR7d5sZ/SKjPxmw/2e94uwEQuUM\nW/Mjyws=\n=37HJ\n-----END PGP SIGNATURE-----\n",
+        "hash_anchor": "730347d9f789b5a63311ec24aca2c01c243d55834e38d3e1805e14a5ffc66ce6",
+        "integrity_scope": "EPHEMERAL_RAM_LEGAL_SIGNATURE"
+    }
+}
