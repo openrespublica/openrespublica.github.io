@@ -1,0 +1,15 @@
+{
+    "status": "VERIFIED \u2705",
+    "document_type": "EMPLOYMENT",
+    "control_number": "Verified_2026-0034-EMPLOYMENT",
+    "sha256_hash": "d16d784ca2d914051a31ed02a5cb50b41226a97a216674aea407e6189138f90d",
+    "timestamp": "2026-04-14 11:51 PM PHT",
+    "immudb_transaction_id": 4,
+    "philid_pcn": "1234-5678-9012-3456",
+    "philid_hash": "3B943AD13FA71F15835D3B347E8DC01CAD3BEEF8CD8D5A2CAD41F2A0D6BE6921",
+    "data_signature": {
+        "gpg_signature": "-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\n{\"control_number\": \"Verified_2026-0034-EMPLOYMENT\", \"document_type\": \"EMPLOYMENT\", \"immudb_transaction_id\": 4, \"philid_hash\": \"3B943AD13FA71F15835D3B347E8DC01CAD3BEEF8CD8D5A2CAD41F2A0D6BE6921\", \"philid_pcn\": \"1234-5678-9012-3456\", \"sha256_hash\": \"d16d784ca2d914051a31ed02a5cb50b41226a97a216674aea407e6189138f90d\", \"status\": \"VERIFIED \\u2705\", \"timestamp\": \"2026-04-14 11:51 PM PHT\"}\n-----BEGIN PGP SIGNATURE-----\n\niJMEARYKADsWIQRTWCBjvTAIG3I110Ciu1grcFDlMAUCad5inh0cbWFyY29mZXJu\nYW5kZXowMjA0QGdtYWlsLmNvbQAKCRCiu1grcFDlMKgLAP9zBLIm+d0uLMup0wwz\nPnyf2snHMWnAfzJbcu407NeYlQD7Bpggoae3v+YkX/Kaay/EmiREjEaswS9BSUek\n/CsqtQU=\n=lyep\n-----END PGP SIGNATURE-----\n",
+        "hash_anchor": "19050121ba0a98ce5cf5f3f7217e7af615999b371ab742ff2a029efc6d700f0c",
+        "integrity_scope": "EPHEMERAL_RAM_LEGAL_SIGNATURE"
+    }
+}
