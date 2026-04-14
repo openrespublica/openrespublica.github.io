@@ -47,8 +47,11 @@ SIGNER_POS  = os.getenv("LGU_SIGNER_POSITION", "Official")
 TZ_NAME     = os.getenv("LGU_TIMEZONE", "Asia/Manila")
 
 REPO_PATH     = os.getenv("GITHUB_REPO_PATH", "/home/orp/openrespublica.github.io")
-GITHUB_PORTAL = os.getenv("GITHUB_PORTAL_URL", "https://openrespublica.github.io/verify.html")
-SOVEREIGN_PORTAL = f"https://[{os.getenv('GLOBAL_IPV6')}]:8444/verify.html"
+#GITHUB_PORTAL = os.getenv("GITHUB_PORTAL_URL", "https://openrespublica.github.io/verify.html")
+#SOVEREIGN_PORTAL = f"https://[{os.getenv('GLOBAL_IPV6')}]:8444/verify.html"
+# Use a flexible environment variable with a fallback
+PORTAL_URL = os.getenv("ORP_PUBLIC_PORTAL", "https://cloth-anniversary-please-trusted.trycloudflare.com/verify.html")
+GITHUB_PORTAL = PORTAL_URL
 TEMPLATE_PATH = os.getenv("TEMPLATE_DOCX_PATH", "templates/barangay_template.docx")
 RECORDS_DIR   = os.path.join(REPO_PATH, "docs", "records")
 CONTROL_FILE  = os.path.join(REPO_PATH, "docs", "control_number.txt")
